@@ -24,22 +24,19 @@ def main():
     res = {}
 
     for award, tweets in data_classified.items():
+        res[award] = {}
+
         for tweet in tweets:
             curr_nominees = nominees[award]
 
             for nominee in curr_nominees:
                 if nominee in tweet.lower():
-                    if award not in res:
-                        res[award] = {}
-
                     if nominee not in res[award]:
                         res[award][nominee] = 0
 
                     res[award][nominee] = res[award][nominee] + 1
 
     res_object = json.dumps(res)
-
-    print(res_object)
 
     with open("./data/INITIAL_RESULTS_2013.json", "w") as f:
         f.write(res_object)
