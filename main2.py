@@ -4,41 +4,41 @@ OFFICIAL_AWARDS_1315 = ['cecil b. demille award', 'best motion picture - drama',
 IDX = 3
 
 def main():
-    with open("./data/nominees2013.json", "r") as f:
-        nominees = json.load(f)
+
 
     with open("./data/gg2013.json") as f:
-        data = json.load(f)
+        tweets = json.load(f)
 
-    data = list(map(lambda x: x["text"], data))
-    data_classified = {}
+    tweets = list(map(lambda x: x["text"], tweets))
 
-    for award in OFFICIAL_AWARDS_1315:
-        for tweet in data:
-            if award in tweet.lower():
-                if award not in data_classified:
-                    data_classified[award] = []
-
-                data_classified[award] = data_classified[award] + [tweet]
-
-    res = {}
-
-    for award, tweets in data_classified.items():
-        res[award] = {}
-
+    with open("./data/nominees2013.json", "r") as f:
+        nominees = json.load(f)
+        allnominees = []
+        for k, v in nominees.items():
+            allnominees += v
+    
+    results = {}
+    for nominee in allnominees:
+        results[nominee] = 0
         for tweet in tweets:
-            curr_nominees = nominees[award]
+            if nominee in tweet.lower():
+                results[nominee] = results[nominee] + 1
 
-            for nominee in curr_nominees:
-                if nominee in tweet.lower():
-                    if nominee not in res[award]:
-                        res[award][nominee] = 0
+    winners = {}
+    for k, v in nominees.items():
+        maxvotes = -1
+        winner = ""
+        for nominee in v:
+            if results[nominee] > maxvotes:
+                maxvotes = results[nominee]
+                winner = nominee
 
-                    res[award][nominee] = res[award][nominee] + 1
+        winners[k] = winner
+    print(winners)
 
-    res_object = json.dumps(res)
+    res_object = json.dumps(winners)
 
-    with open("./data/INITIAL_RESULTS_2013.json", "w") as f:
+    with open("./data/INITIAL_RESULTS2_2013.json", "w") as f:
         f.write(res_object)
 
     
