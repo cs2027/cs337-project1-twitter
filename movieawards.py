@@ -12,10 +12,11 @@ def main():
 
     frame.load_tweets()
 
-    frame.generate_awards(False)
+    frame.generate_awards()
+    frame.parse_award_keywords()
 
-    # frame.type_system_nominee()
-    # frame.generate_nominees(False)
+    frame.type_system_nominee()
+    frame.generate_nominees(False)
 
     # frame.generate_winners()
 
@@ -25,7 +26,10 @@ class AwardFrame:
     def __init__(self):
         self.results = {}
         self.nominee_type_system = {}
+
         self.award_suffixes = ["motion picture", "comedy or musical", "television", "drama", "film"]
+        self.award_keywords = {}
+
         self.winner_regex = [f"best(.*){suffix}" for suffix in self.award_suffixes]
         self.nominee_regex = ["nominees for(.*) are(.*)", "(.*)is nominated for(.*)", "(.*)is[ ]?(?:a)?[ ]?nominee for(.*)", "(.*)are[ ]?(?:the)?[ ]?nominees for(.*)"]
         self.awards_regex = ["(.*)goes to(.*)", "(.*)wins(.*)", "(.*)takes home(.*)", "(.*)receives(.*)", "(.*)is the winner of(.*)"]
@@ -58,18 +62,18 @@ class AwardFrame:
 
                     if match:
                         award_name = match[0].lower().strip()
-                        award_name_parsed = re.sub("[^a-zA-Z ]", "", award_name)
-                        award_name_parsed = re.sub(' +', ' ', award_name_parsed)
+                        award_name_parsed = self.alpha_only_string(award_name)
                         award_name_parsed = " ".join(list(filter(lambda word: word not in STOP_WORDS or word in ["or", "in", "a"], award_name_parsed.split(" "))))
 
                         if award_name_parsed.startswith("best ") and any(award_name_parsed.endswith(suffix) for suffix in self.award_suffixes):
                           results[award_name_parsed] = results[award_name_parsed] + 1 if award_name_parsed in results else 1
 
             results = {k : v for k, v in results.items() if v > 5}
-            self.results = {award : {} for award in results.keys()}
 
-        awards = self.aggregate_awards(list(results.keys()))
-        awards = self.parse_award_names(awards)
+            awards = self.aggregate_awards(list(results.keys()))
+            awards = self.parse_award_names(awards)
+
+            self.results = {award : {} for award in awards}
 
     def aggregate_awards(self, awards):
       n = len(awards)
@@ -124,7 +128,16 @@ class AwardFrame:
               else:
                 res.append(award[:suffix_loc - 1] + " - " + award[suffix_loc:])
 
+              break
+
         return res
+
+    def parse_award_keywords(self):
+      if not self.results:
+        self.generate_awards()
+
+      for award in self.results.keys():
+        self.award_keywords[award] = list(filter(lambda word: word not in STOP_WORDS and word != "-", award.split(" ")))
 
     def generate_nominees(self, autofill = True):
         if not self.tweets:
@@ -154,19 +167,32 @@ class AwardFrame:
                         curr_award = None
 
                         for award in self.results.keys():
-                            if award in y.lower():
+                            y_list = self.alpha_only_string(y.lower()).split(" ")
+                            all_keywords = self.award_keywords[award]
+
+                            num_keywords = 0
+
+                            for keyword in all_keywords:
+                              if keyword in y_list:
+                                num_keywords += 1
+
+                            if num_keywords / len(all_keywords) >= 0.5:
                                 curr_award = award
                                 break
 
                         if curr_award:
-                            if index == 0 or index == 3:
-                                if "," in x:
-                                    nominees = [s.strip() for s in x.split(",")]
-                                    for nominee in nominees:
-                                        results[curr_award][nominee] = results[curr_award][nominee] + 1 if nominee in results[curr_award] else 1
-                            else:
-                                x = x.lower().strip()
-                                results[curr_award][x] = results[curr_award][x] + 1 if x in results[curr_award] else 1
+                            # NOTE: Currently ignoring possible lists of nominees
+                            # if index == 0 or index == 3:
+                            #     if "," in x:
+                            #         nominees = [s.strip() for s in x.split(",")]
+                            #         for nominee in nominees:
+                            #             results[curr_award][nominee] = results[curr_award][nominee] + 1 if nominee in results[curr_award] else 1
+                            # else:
+                            if x.startswith("rt @"):
+                              x = x[4:]
+
+                            x = self.alpha_only_string(x.lower().strip())
+                            results[curr_award][x] = results[curr_award][x] + 1 if x in results[curr_award] else 1
 
             for award in results:
                 votes = sorted(results[award], key = lambda x: x[1], reverse = True)
@@ -225,12 +251,18 @@ class AwardFrame:
 
                 self.results[award]["winner"] = winner
 
+    def alpha_only_string(self, s):
+      s = re.sub("[^a-zA-Z ]", "", s)
+      s = re.sub(' +', ' ', s)
+      return s
+
     def print_winners(self):
         for award in self.results.keys():
             print(award, ":", self.results[award]["winner"])
 
     def print_results(self):
         print(self.results)
+
 
 if __name__ == "__main__":
     main()
