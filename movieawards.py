@@ -5,6 +5,18 @@ import re
 from nltk import pos_tag, word_tokenize
 from nltk.corpus import stopwords
 
+'''
+-best performance by an actress in a supporting role in a series, mini-series or motion picture made for television
+-best performance by an actress in a motion picture - comedy or musical
+-best performance by an actress in a motion picture - drama
+-best performance by an actor in a supporting role in a series, mini-series or motion picture made for television
+-best performance by an actor in a mini-series or motion picture made for television
+-best performance by an actress in a mini-series or motion picture made for television
+-best television series - comedy or musical
+-best performance by an actor in a television series - drama
+-best performance by an actor in a television series - comedy or musical
+'''
+
 STOP_WORDS = set(stopwords.words("english"))
 
 def main():
@@ -31,7 +43,8 @@ class AwardFrame:
         self.award_keywords = {}
 
         self.winner_regex = [f"best(.*){suffix}" for suffix in self.award_suffixes]
-        self.nominee_regex = ["nominees for(.*) are(.*)", "(.*)is nominated for(.*)", "(.*)is[ ]?(?:a)?[ ]?nominee for(.*)", "(.*)are[ ]?(?:the)?[ ]?nominees for(.*)"]
+        self.nominee_regex = ["(.*)nominee(.*)", "(.*)nominate(.*)"]
+        # self.nominee_regex = ["nominees for(.*) are(.*)", "(.*)is nominated for(.*)", "(.*)is[ ]?(?:a)?[ ]?nominee for(.*)", "(.*)are[ ]?(?:the)?[ ]?nominees for(.*)"]
         self.awards_regex = ["(.*)goes to(.*)", "(.*)wins(.*)", "(.*)takes home(.*)", "(.*)receives(.*)", "(.*)is the winner of(.*)"]
         self.tweets = []
 
@@ -96,7 +109,7 @@ class AwardFrame:
           other_award = awards[j]
           other_award_keywords = " ".join(list(filter(lambda word: word not in STOP_WORDS, other_award.split(" "))))
 
-          if curr_award_keywords == other_award_keywords:
+          if curr_award_keywords == other_award_keywords: # TODO: Maybe make the aggregation method here slightly less strict
             matches.append(other_award)
             visited[j] = True
 
@@ -153,18 +166,32 @@ class AwardFrame:
             # TODO: Regex + type checking system
             results = {award : {} for award in self.results.keys()}
 
-            for index, regex in enumerate(self.awards_regex):
+            for index, regex in enumerate(self.nominee_regex):
                 for tweet in self.tweets:
                     match = re.search(regex, tweet.lower())
 
+                    # if not match:
+                    #   print("NON_MATCH")
+                    #   print("tweet", tweet)
+                    #   print("\n")
+
                     if match:
-                        x, y = "", ""
-                        if index == 0:
-                            y, x = match.group(1), match.group(2)
-                        else:
-                            x, y = match.group(1), match.group(2)
+                        # x, y = "", ""
+                        # if index == 0:
+                        #     y, x = match.group(1), match.group(2)
+                        # else:
+                        x, y = match.group(1), match.group(2)
+
+                        if not x or not y:
+                          continue
 
                         curr_award = None
+
+                        # print("MATCH")
+                        # print("tweet", tweet)
+                        # print("x", x)
+                        # print("y", y)
+                        # print("\n")
 
                         for award in self.results.keys():
                             y_list = self.alpha_only_string(y.lower()).split(" ")
@@ -177,6 +204,12 @@ class AwardFrame:
                                 num_keywords += 1
 
                             if num_keywords / len(all_keywords) >= 0.5:
+                                # print("award", award)
+                                # print("tweet", tweet)
+                                # print("x", x)
+                                # print("y", y)
+                                # print("\n")
+
                                 curr_award = award
                                 break
 
@@ -198,6 +231,7 @@ class AwardFrame:
                 votes = sorted(results[award], key = lambda x: x[1], reverse = True)
                 self.results[award]["nominees"] = votes
 
+        self.write_to_file(results, "nominees.json")
         self.print_results()
 
     def type_system_nominee(self):
@@ -252,9 +286,16 @@ class AwardFrame:
                 self.results[award]["winner"] = winner
 
     def alpha_only_string(self, s):
+      # TODO: Get rid of @[...]
       s = re.sub("[^a-zA-Z ]", "", s)
       s = re.sub(' +', ' ', s)
       return s
+
+    def write_to_file(self, data, filename):
+      json_obj = json.dumps(data)
+
+      with open(f"./data/{filename}", "w") as f:
+        f.write(json_obj)
 
     def print_winners(self):
         for award in self.results.keys():
