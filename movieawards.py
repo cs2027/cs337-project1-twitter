@@ -4,10 +4,12 @@ import re
 def main():
     frame = AwardFrame()
 
-    frame.generate_awards()
+    frame.load_tweets()
 
-    frame.type_system_nominee()
-    frame.generate_nominees(False)
+    frame.generate_awards(False)
+
+    # frame.type_system_nominee()
+    # frame.generate_nominees(False)
 
     #frame.generate_winners()
 
@@ -17,9 +19,16 @@ class AwardFrame:
     def __init__(self):
         self.results = {}
         self.nominee_type_system = {}
+        self.winner_regex = ["best(.*)motion picture", "best(.*)comedy or musical", "best(.*)television", "best(.*)drama", "best(.*)film"]
         self.nominee_regex = ["nominees for(.*) are(.*)", "(.*)is nominated for(.*)", "(.*)is[ ]?(?:a)?[ ]?nominee for(.*)", "(.*)are[ ]?(?:the)?[ ]?nominees for(.*)"]
-        self.winner_regex = []
         self.awards_regex = ["(.*)goes to(.*)", "(.*)wins(.*)", "(.*)takes home(.*)", "(.*)receives(.*)", "(.*)is the winner of(.*)"]
+        self.tweets = []
+
+    def load_tweets(self):
+        with open("./data/gg2013.json") as f:
+            tweets = json.load(f)
+
+        self.tweets = list(map(lambda x: x["text"], tweets))
 
     def generate_awards(self, autofill = True):
         if autofill:
@@ -32,7 +41,21 @@ class AwardFrame:
                 self.results[award] = {}
         else:
             # TODO: Regex
-            pass
+            results = {}
+
+            for regex in self.winner_regex:
+                for tweet in self.tweets:
+                    match = re.search(regex, tweet)
+
+                    if match:
+                        award_name = match[0].lower().strip()
+
+                        if award_name in results:
+                            results[award_name] = results[award_name] + 1
+                        else:
+                            results[award_name] = 1
+
+            results = {k : v for k, v in results.items() if v > 1}
 
     def generate_nominees(self, autofill = True):
         if autofill:
@@ -44,13 +67,9 @@ class AwardFrame:
         else:
             # TODO: Regex + type checking system
             results = {award : {} for award in self.results.keys()}
-            with open("./data/gg2013.json") as f:
-                tweets = json.load(f)
-
-            tweets = list(map(lambda x: x["text"], tweets))
 
             for index, regex in enumerate(self.awards_regex):
-                for tweet in tweets:
+                for tweet in self.tweets:
                     match = re.search(regex, tweet)
 
                     if match:
@@ -59,7 +78,6 @@ class AwardFrame:
                             y, x = match.group(1), match.group(2)
                         else:
                             x, y = match.group(1), match.group(2)
-
                         
                         curr_award = None
 
@@ -87,20 +105,10 @@ class AwardFrame:
                 votes = sorted(results[award], key = lambda x: x[1], reverse = True)
                 self.results[award]["nominees"] = votes[:5]
 
-          
-
-
-
-
     def type_system_nominee(self):
         pass
 
     def generate_winners(self):
-        with open("./data/gg2013.json") as f:
-            tweets = json.load(f)
-
-        tweets = list(map(lambda x: x["text"], tweets))
-
         results = {award : {} for award in self.results.keys()}
 
         for award in self.results.keys():
@@ -108,7 +116,7 @@ class AwardFrame:
             results[award] = subres
 
         for index, regex in enumerate(self.awards_regex):
-            for tweet in tweets:
+            for tweet in self.tweets:
                 match = re.search(regex, tweet)
 
                 if match:
