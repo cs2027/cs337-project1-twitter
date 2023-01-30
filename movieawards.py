@@ -1,6 +1,12 @@
 import json
 import re
 
+# MISC: See here (https://stackoverflow.com/questions/38916452/nltk-download-ssl-certificate-verify-failed) for SSL certificate issues w/ NLTK downloads
+from nltk import pos_tag, word_tokenize
+from nltk.corpus import stopwords
+
+STOP_WORDS = set(stopwords.words("english"))
+
 def main():
     frame = AwardFrame()
 
@@ -8,18 +14,19 @@ def main():
 
     frame.generate_awards(False)
 
-    frame.type_system_nominee()
-    frame.generate_nominees(False)
+    # frame.type_system_nominee()
+    # frame.generate_nominees(False)
 
-    frame.generate_winners()
+    # frame.generate_winners()
 
-    frame.print_results()
+    # frame.print_results()
 
 class AwardFrame:
     def __init__(self):
         self.results = {}
         self.nominee_type_system = {}
-        self.winner_regex = ["best(.*)motion picture", "best(.*)comedy or musical", "best(.*)television", "best(.*)drama", "best(.*)film"]
+        self.award_suffixes = ["motion picture", "comedy or musical", "television", "drama", "film"]
+        self.winner_regex = [f"best(.*){suffix}" for suffix in self.award_suffixes]
         self.nominee_regex = ["nominees for(.*) are(.*)", "(.*)is nominated for(.*)", "(.*)is[ ]?(?:a)?[ ]?nominee for(.*)", "(.*)are[ ]?(?:the)?[ ]?nominees for(.*)"]
         self.awards_regex = ["(.*)goes to(.*)", "(.*)wins(.*)", "(.*)takes home(.*)", "(.*)receives(.*)", "(.*)is the winner of(.*)"]
         self.tweets = []
@@ -51,9 +58,73 @@ class AwardFrame:
 
                     if match:
                         award_name = match[0].lower().strip()
-                        results[award_name] = results[award_name] + 1 if award_name in results else 1
+                        award_name_parsed = re.sub("[^a-zA-Z ]", "", award_name)
+                        award_name_parsed = re.sub(' +', ' ', award_name_parsed)
+                        award_name_parsed = " ".join(list(filter(lambda word: word not in STOP_WORDS or word in ["or", "in", "a"], award_name_parsed.split(" "))))
 
-            results = {k : v for k, v in results.items() if v > 1}
+                        if award_name_parsed.startswith("best ") and any(award_name_parsed.endswith(suffix) for suffix in self.award_suffixes):
+                          results[award_name_parsed] = results[award_name_parsed] + 1 if award_name_parsed in results else 1
+
+            results = {k : v for k, v in results.items() if v > 5}
+            self.results = {award : {} for award in results.keys()}
+
+        awards = self.aggregate_awards(list(results.keys()))
+        awards = self.parse_award_names(awards)
+
+    def aggregate_awards(self, awards):
+      n = len(awards)
+
+      res = []
+      visited = [False for _ in range(n)]
+
+      for i in range(n):
+        if visited[i]:
+          continue
+
+        curr_award = awards[i]
+        curr_award_keywords = " ".join(list(filter(lambda word: word not in STOP_WORDS, curr_award.split(" "))))
+        matches = [curr_award]
+
+        for j in range(n):
+          if visited[j] or i == j:
+            continue
+
+          other_award = awards[j]
+          other_award_keywords = " ".join(list(filter(lambda word: word not in STOP_WORDS, other_award.split(" "))))
+
+          if curr_award_keywords == other_award_keywords:
+            matches.append(other_award)
+            visited[j] = True
+
+        if len(matches) > 1:
+          longest_award = max(matches, key = len)
+          res.append(longest_award)
+        else:
+          res.append(curr_award)
+
+        visited[i] = True
+
+      return res
+
+    def parse_award_names(self, awards):
+        res = []
+
+        for award in awards:
+          pos_tags = pos_tag(word_tokenize(award))
+
+          for suffix in self.award_suffixes:
+            suffix_loc = award.find(suffix)
+
+            if suffix_loc != -1:
+              last_non_suffix_word = award[:suffix_loc - 1].split(" ")[-1]
+              pos_tag_last_word = list(filter(lambda x: x[0] == last_non_suffix_word, pos_tags))[0][1]
+
+              if pos_tag_last_word != "NN" or len(pos_tags) < 5:
+                res.append(award)
+              else:
+                res.append(award[:suffix_loc - 1] + " - " + award[suffix_loc:])
+
+        return res
 
     def generate_nominees(self, autofill = True):
         if not self.tweets:
@@ -71,7 +142,7 @@ class AwardFrame:
 
             for index, regex in enumerate(self.awards_regex):
                 for tweet in self.tweets:
-                    match = re.search(regex, tweet)
+                    match = re.search(regex, tweet.lower())
 
                     if match:
                         x, y = "", ""
@@ -79,13 +150,14 @@ class AwardFrame:
                             y, x = match.group(1), match.group(2)
                         else:
                             x, y = match.group(1), match.group(2)
-                        
+
                         curr_award = None
 
                         for award in self.results.keys():
                             if award in y.lower():
                                 curr_award = award
                                 break
+
                         if curr_award:
                             if index == 0 or index == 3:
                                 if "," in x:
@@ -95,10 +167,12 @@ class AwardFrame:
                             else:
                                 x = x.lower().strip()
                                 results[curr_award][x] = results[curr_award][x] + 1 if x in results[curr_award] else 1
-           
+
             for award in results:
                 votes = sorted(results[award], key = lambda x: x[1], reverse = True)
-                self.results[award]["nominees"] = votes[:5]
+                self.results[award]["nominees"] = votes
+
+        self.print_results()
 
     def type_system_nominee(self):
         pass
@@ -138,7 +212,7 @@ class AwardFrame:
                                 break
 
                     if curr_winner:
-                        results[curr_award][curr_winner] = results[curr_award][curr_winner] + 1 
+                        results[curr_award][curr_winner] = results[curr_award][curr_winner] + 1
 
             for award in self.results.keys():
                 max_votes = -1
@@ -156,7 +230,7 @@ class AwardFrame:
             print(award, ":", self.results[award]["winner"])
 
     def print_results(self):
-        print(self.results)        
+        print(self.results)
 
 if __name__ == "__main__":
     main()
