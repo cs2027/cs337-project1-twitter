@@ -8,12 +8,12 @@ def main():
 
     frame.generate_awards(False)
 
-    # frame.type_system_nominee()
-    # frame.generate_nominees(False)
+    frame.type_system_nominee()
+    frame.generate_nominees(False)
 
-    #frame.generate_winners()
+    frame.generate_winners()
 
-    #print(frame.results)
+    frame.print_results()
 
 class AwardFrame:
     def __init__(self):
@@ -31,6 +31,9 @@ class AwardFrame:
         self.tweets = list(map(lambda x: x["text"], tweets))
 
     def generate_awards(self, autofill = True):
+        if not self.tweets:
+            self.load_tweets()
+
         if autofill:
             with open("./data/nominees2013.json") as f:
                 data = json.load(f)
@@ -40,7 +43,6 @@ class AwardFrame:
             for award in awards:
                 self.results[award] = {}
         else:
-            # TODO: Regex
             results = {}
 
             for regex in self.winner_regex:
@@ -49,15 +51,14 @@ class AwardFrame:
 
                     if match:
                         award_name = match[0].lower().strip()
-
-                        if award_name in results:
-                            results[award_name] = results[award_name] + 1
-                        else:
-                            results[award_name] = 1
+                        results[award_name] = results[award_name] + 1 if award_name in results else 1
 
             results = {k : v for k, v in results.items() if v > 1}
 
     def generate_nominees(self, autofill = True):
+        if not self.tweets:
+            self.load_tweets()
+
         if autofill:
             with open("./data/nominees2013.json") as f:
                 data = json.load(f)
@@ -90,16 +91,10 @@ class AwardFrame:
                                 if "," in x:
                                     nominees = [s.strip() for s in x.split(",")]
                                     for nominee in nominees:
-                                        if nominee in results[curr_award]:
-                                            results[curr_award][nominee] = results[curr_award][nominee] + 1
-                                        else:
-                                            results[curr_award][nominee] = 1 
+                                        results[curr_award][nominee] = results[curr_award][nominee] + 1 if nominee in results[curr_award] else 1
                             else:
                                 x = x.lower().strip()
-                                if x in results[curr_award]:
-                                    results[curr_award][x] = results[curr_award][x] + 1
-                                else:
-                                    results[curr_award][x] = 1 
+                                results[curr_award][x] = results[curr_award][x] + 1 if x in results[curr_award] else 1
            
             for award in results:
                 votes = sorted(results[award], key = lambda x: x[1], reverse = True)
@@ -109,6 +104,9 @@ class AwardFrame:
         pass
 
     def generate_winners(self):
+        if not self.tweets:
+            self.load_tweets()
+
         results = {award : {} for award in self.results.keys()}
 
         for award in self.results.keys():
