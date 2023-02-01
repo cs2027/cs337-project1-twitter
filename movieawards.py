@@ -5,18 +5,6 @@ import re
 from nltk import pos_tag, word_tokenize
 from nltk.corpus import stopwords
 
-'''
--best performance by an actress in a supporting role in a series, mini-series or motion picture made for television
--best performance by an actress in a motion picture - comedy or musical
--best performance by an actress in a motion picture - drama
--best performance by an actor in a supporting role in a series, mini-series or motion picture made for television
--best performance by an actor in a mini-series or motion picture made for television
--best performance by an actress in a mini-series or motion picture made for television
--best television series - comedy or musical
--best performance by an actor in a television series - drama
--best performance by an actor in a television series - comedy or musical
-'''
-
 STOP_WORDS = set(stopwords.words("english"))
 
 def main():
@@ -24,7 +12,7 @@ def main():
 
     frame.load_tweets()
 
-    frame.generate_awards()
+    frame.generate_awards(False)
     frame.parse_award_keywords()
 
     frame.type_system_nominee()
@@ -39,6 +27,7 @@ class AwardFrame:
         self.results = {}
         self.nominee_type_system = {}
 
+        self.award_groups = {}
         self.award_suffixes = ["motion picture", "comedy or musical", "television", "drama", "film"]
         self.award_keywords = {}
 
@@ -114,8 +103,13 @@ class AwardFrame:
             visited[j] = True
 
         if len(matches) > 1:
-          longest_award = max(matches, key = len)
+          max_index = matches.index(max(matches, key = len))
+
+          longest_award = matches[max_index]
           res.append(longest_award)
+
+          matches.pop(max_index)
+          self.award_groups[longest_award] = matches
         else:
           res.append(curr_award)
 
@@ -139,7 +133,15 @@ class AwardFrame:
               if pos_tag_last_word != "NN" or len(pos_tags) < 5:
                 res.append(award)
               else:
-                res.append(award[:suffix_loc - 1] + " - " + award[suffix_loc:])
+                new_award_name = award[:suffix_loc - 1] + " - " + award[suffix_loc:]
+
+                if award in self.award_groups:
+                  similar_names = self.award_groups[award]
+                  self.award_groups[new_award_name] = similar_names
+
+                  del self.award_groups[award]
+
+                res.append(new_award_name)
 
               break
 
@@ -167,13 +169,10 @@ class AwardFrame:
             results = {award : {} for award in self.results.keys()}
 
             for index, regex in enumerate(self.nominee_regex):
+                # count = 0
+
                 for tweet in self.tweets:
                     match = re.search(regex, tweet.lower())
-
-                    # if not match:
-                    #   print("NON_MATCH")
-                    #   print("tweet", tweet)
-                    #   print("\n")
 
                     if match:
                         # x, y = "", ""
@@ -187,12 +186,6 @@ class AwardFrame:
 
                         curr_award = None
 
-                        # print("MATCH")
-                        # print("tweet", tweet)
-                        # print("x", x)
-                        # print("y", y)
-                        # print("\n")
-
                         for award in self.results.keys():
                             y_list = self.alpha_only_string(y.lower()).split(" ")
                             all_keywords = self.award_keywords[award]
@@ -204,12 +197,6 @@ class AwardFrame:
                                 num_keywords += 1
 
                             if num_keywords / len(all_keywords) >= 0.5:
-                                # print("award", award)
-                                # print("tweet", tweet)
-                                # print("x", x)
-                                # print("y", y)
-                                # print("\n")
-
                                 curr_award = award
                                 break
 
@@ -228,11 +215,11 @@ class AwardFrame:
                             results[curr_award][x] = results[curr_award][x] + 1 if x in results[curr_award] else 1
 
             for award in results:
-                votes = sorted(results[award], key = lambda x: x[1], reverse = True)
+                votes = sorted(results[award].items(), key = lambda x: x[1], reverse = True)
                 self.results[award]["nominees"] = votes
 
         self.write_to_file(results, "nominees.json")
-        self.print_results()
+        # self.print_results()
 
     def type_system_nominee(self):
         pass
@@ -247,6 +234,8 @@ class AwardFrame:
             subres = {nominee : 0 for nominee in self.results[award]["nominees"]}
             results[award] = subres
 
+        # TODO: Instead of regex, maybe try nltk, e.g. named entity?
+        # Check for noun phrases, see if one includes the word "award", other one is a nominee hopefully(?)
         for index, regex in enumerate(self.awards_regex):
             for tweet in self.tweets:
                 match = re.search(regex, tweet)
