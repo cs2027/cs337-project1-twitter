@@ -1,26 +1,14 @@
 import json
 import re
 import spacy
+import time
 
 # MISC: See here (https://stackoverflow.com/questions/38916452/nltk-download-ssl-certificate-verify-failed) for SSL certificate issues w/ NLTK downloads
-from nltk import pos_tag, word_tokenize
+from nltk import pos_tag, word_tokenize, RegexpParser
 from nltk.corpus import stopwords
 
-import spacy
 nlp = spacy.load("en_core_web_sm")
-
-'''
--best performance by an actress in a supporting role in a series, mini-series or motion picture made for television
--best performance by an actress in a motion picture - comedy or musical
--best performance by an actress in a motion picture - drama
--best performance by an actor in a supporting role in a series, mini-series or motion picture made for television
--best performance by an actor in a mini-series or motion picture made for television
--best performance by an actress in a mini-series or motion picture made for television
--best television series - comedy or musical
--best performance by an actor in a television series - drama
--best performance by an actor in a television series - comedy or musical
-'''
-
+pattern = "NP: {<NNP><NNP>}"
 STOP_WORDS = set(stopwords.words("english"))
 
 def main():
@@ -28,15 +16,13 @@ def main():
 
     frame.load_tweets()
 
-    frame.generate_hosts()
+    # frame.generate_hosts()
 
-    #frame.generate_awards()
-    #frame.parse_award_keywords()
     frame.generate_awards(False)
     frame.parse_award_keywords()
 
     #frame.type_system_nominee()
-    #frame.generate_nominees(False)
+    frame.generate_nominees(False)
 
     # frame.generate_winners()
 
@@ -181,9 +167,11 @@ class AwardFrame:
         else:
           self.award_keywords[award] = list(filter(lambda word: word not in STOP_WORDS and word != "-", award.split(" ")))
 
-    def generate_nominees(self, autofill = True):
-        nlp = spacy.load('en_core_web_sm')
+      print("AWARD KEYWORDS")
+      print(self.award_keywords)
+      print("\n")
 
+    def generate_nominees(self, autofill = True):
         if not self.tweets:
             self.load_tweets()
 
@@ -194,11 +182,17 @@ class AwardFrame:
             for award, nominee_list in data.items():
                 self.results[award]["nominees"] = nominee_list
         else:
-            # TODO: Regex + type checking system
             awards = self.results.keys()
             results = {award : {} for award in awards}
 
             for award in awards:
+              award_type = ""
+
+              if "actor" in award or "actress" in award:
+                award_type = "person"
+              else:
+                award_type = "film"
+
               award_group = [award] + self.award_groups[award] if award in self.award_groups else [award]
               related_tweets = []
 
@@ -218,18 +212,48 @@ class AwardFrame:
                       break
 
               for tweet in related_tweets:
+                tweet = self.alpha_only_string(tweet)
                 doc = nlp(tweet)
 
-                for word in doc.ents:
-                  if word.label_ == "PERSON":
-                    results[award][word] = results[award][word] + 1 if word in results[award] else 1
+                if award_type == "person":
+                  nltk_nominees = self.match_grammar_from_tweet(tweet)
+                  spacy_nominees = []
 
-            for award in results:
-                votes = sorted(results[award].items(), key = lambda x: x[1], reverse = True)
-                self.results[award]["nominees"] = votes
+                  for word in doc.ents:
+                    if word.label_ == "PERSON":
+                      spacy_nominees.append(str(word))
+
+                  nominee_candidates = list(set(nltk_nominees) & set(spacy_nominees))
+
+                  for nominee_candidate in nominee_candidates:
+                    if nominee_candidate in results[award]:
+                      results[award][nominee_candidate] = results[award][nominee_candidate] + 1
+                    else:
+                      results[award][nominee_candidate] = 1
+                else:
+                  doc = nlp(tweet)
+                  for chunk in doc.noun_chunks:
+                    nominee_candidate = chunk.text
+
+                    if nominee_candidate in results[award]:
+                      results[award][nominee_candidate] = results[award][nominee_candidate] + 1
+                    else:
+                      results[award][nominee_candidate] = 1
+
+              top_results = sorted(results[award].items(), key = lambda x: x[1], reverse = True)[:10]
+              self.results[award]["nominees"] = [result[0] for result in top_results]
 
         self.write_to_file(results, "nominees.json")
         self.print_results()
+
+    def match_grammar_from_tweet(self, tweet):
+      tweet = word_tokenize(tweet)
+      tweet = pos_tag(tweet)
+      chunk = RegexpParser(pattern)
+      chunk_tree = chunk.parse(tweet)
+
+      matches = list(chunk_tree.subtrees(filter = lambda tree: tree.label() == "NP"))
+      return list(map(lambda x : x[0][0] + " " + x[1][0], matches))
 
     def type_system_nominee(self):
         pass
@@ -290,7 +314,7 @@ class AwardFrame:
     def generate_hosts(self):
       if not self.tweets:
         self.load_tweets()
-      
+
       results = {}
 
       for tweet in self.tweets:
@@ -304,10 +328,6 @@ class AwardFrame:
                 results[ent.text] = 1
 
       print(sorted(results.items(), key=(lambda x: x[1]), reverse=True)[0:2])
-
-      # for regex in self.hosts_regex:
-      #     for tweet in self.tweets:
-      #         match = re.search(regex, tweet)
 
     def alpha_only_string(self, s):
       # TODO: Get rid of @[...]
