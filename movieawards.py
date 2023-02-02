@@ -6,6 +6,21 @@ import spacy
 from nltk import pos_tag, word_tokenize
 from nltk.corpus import stopwords
 
+import spacy
+nlp = spacy.load("en_core_web_sm")
+
+'''
+-best performance by an actress in a supporting role in a series, mini-series or motion picture made for television
+-best performance by an actress in a motion picture - comedy or musical
+-best performance by an actress in a motion picture - drama
+-best performance by an actor in a supporting role in a series, mini-series or motion picture made for television
+-best performance by an actor in a mini-series or motion picture made for television
+-best performance by an actress in a mini-series or motion picture made for television
+-best television series - comedy or musical
+-best performance by an actor in a television series - drama
+-best performance by an actor in a television series - comedy or musical
+'''
+
 STOP_WORDS = set(stopwords.words("english"))
 
 def main():
@@ -13,11 +28,15 @@ def main():
 
     frame.load_tweets()
 
+    frame.generate_hosts()
+
+    #frame.generate_awards()
+    #frame.parse_award_keywords()
     frame.generate_awards(False)
     frame.parse_award_keywords()
 
-    frame.type_system_nominee()
-    frame.generate_nominees(False)
+    #frame.type_system_nominee()
+    #frame.generate_nominees(False)
 
     # frame.generate_winners()
 
@@ -34,6 +53,7 @@ class AwardFrame:
 
         self.winner_regex = [f"best(.*){suffix}" for suffix in self.award_suffixes]
         self.nominee_regex = ["(.*)nominee(.*)", "(.*)nominate(.*)"]
+        self.hosts_regex = ["(.*)"]
         # self.nominee_regex = ["nominees for(.*) are(.*)", "(.*)is nominated for(.*)", "(.*)is[ ]?(?:a)?[ ]?nominee for(.*)", "(.*)are[ ]?(?:the)?[ ]?nominees for(.*)"]
         self.awards_regex = ["(.*)goes to(.*)", "(.*)wins(.*)", "(.*)takes home(.*)", "(.*)receives(.*)", "(.*)is the winner of(.*)"]
         self.tweets = []
@@ -263,6 +283,31 @@ class AwardFrame:
                         winner = nominee
 
                 self.results[award]["winner"] = winner
+
+    def generate_presenters(self):
+      pass
+
+    def generate_hosts(self):
+      if not self.tweets:
+        self.load_tweets()
+      
+      results = {}
+
+      for tweet in self.tweets:
+        if "host" in tweet.lower() and "next year" not in tweet.lower():
+          doc = nlp(tweet)
+          for ent in doc.ents:
+            if ent.label_ == 'PERSON' and len(ent.text.split(" ")) > 1:
+              if ent.text in results:
+                results[ent.text] += 1
+              else:
+                results[ent.text] = 1
+
+      print(sorted(results.items(), key=(lambda x: x[1]), reverse=True)[0:2])
+
+      # for regex in self.hosts_regex:
+      #     for tweet in self.tweets:
+      #         match = re.search(regex, tweet)
 
     def alpha_only_string(self, s):
       # TODO: Get rid of @[...]
