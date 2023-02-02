@@ -1,5 +1,6 @@
 import json
 import re
+import spacy
 
 # MISC: See here (https://stackoverflow.com/questions/38916452/nltk-download-ssl-certificate-verify-failed) for SSL certificate issues w/ NLTK downloads
 from nltk import pos_tag, word_tokenize
@@ -152,9 +153,17 @@ class AwardFrame:
         self.generate_awards()
 
       for award in self.results.keys():
-        self.award_keywords[award] = list(filter(lambda word: word not in STOP_WORDS and word != "-", award.split(" ")))
+        if award in self.award_groups:
+          award_group = [award] + self.award_groups[award]
+
+          for award_candidate in award_group:
+            self.award_keywords[award_candidate] = list(filter(lambda word: word not in STOP_WORDS and word != "-", award.split(" ")))
+        else:
+          self.award_keywords[award] = list(filter(lambda word: word not in STOP_WORDS and word != "-", award.split(" ")))
 
     def generate_nominees(self, autofill = True):
+        nlp = spacy.load('en_core_web_sm')
+
         if not self.tweets:
             self.load_tweets()
 
@@ -166,60 +175,41 @@ class AwardFrame:
                 self.results[award]["nominees"] = nominee_list
         else:
             # TODO: Regex + type checking system
-            results = {award : {} for award in self.results.keys()}
+            awards = self.results.keys()
+            results = {award : {} for award in awards}
 
-            for index, regex in enumerate(self.nominee_regex):
-                # count = 0
+            for award in awards:
+              award_group = [award] + self.award_groups[award] if award in self.award_groups else [award]
+              related_tweets = []
 
-                for tweet in self.tweets:
-                    match = re.search(regex, tweet.lower())
+              for tweet in self.tweets:
+                tweet_list = self.alpha_only_string(tweet).split(" ")
 
-                    if match:
-                        # x, y = "", ""
-                        # if index == 0:
-                        #     y, x = match.group(1), match.group(2)
-                        # else:
-                        x, y = match.group(1), match.group(2)
+                for award_candidate in award_group:
+                  all_keywords = self.award_keywords[award_candidate]
+                  num_keywords = 0
 
-                        if not x or not y:
-                          continue
+                  for keyword in all_keywords:
+                    if keyword in tweet_list:
+                      num_keywords += 1
 
-                        curr_award = None
+                  if num_keywords / len(all_keywords) >= 0.5:
+                      related_tweets.append(tweet)
+                      break
 
-                        for award in self.results.keys():
-                            y_list = self.alpha_only_string(y.lower()).split(" ")
-                            all_keywords = self.award_keywords[award]
+              for tweet in related_tweets:
+                doc = nlp(tweet)
 
-                            num_keywords = 0
-
-                            for keyword in all_keywords:
-                              if keyword in y_list:
-                                num_keywords += 1
-
-                            if num_keywords / len(all_keywords) >= 0.5:
-                                curr_award = award
-                                break
-
-                        if curr_award:
-                            # NOTE: Currently ignoring possible lists of nominees
-                            # if index == 0 or index == 3:
-                            #     if "," in x:
-                            #         nominees = [s.strip() for s in x.split(",")]
-                            #         for nominee in nominees:
-                            #             results[curr_award][nominee] = results[curr_award][nominee] + 1 if nominee in results[curr_award] else 1
-                            # else:
-                            if x.startswith("rt @"):
-                              x = x[4:]
-
-                            x = self.alpha_only_string(x.lower().strip())
-                            results[curr_award][x] = results[curr_award][x] + 1 if x in results[curr_award] else 1
+                for word in doc.ents:
+                  if word.label_ == "PERSON":
+                    results[award][word] = results[award][word] + 1 if word in results[award] else 1
 
             for award in results:
                 votes = sorted(results[award].items(), key = lambda x: x[1], reverse = True)
                 self.results[award]["nominees"] = votes
 
         self.write_to_file(results, "nominees.json")
-        # self.print_results()
+        self.print_results()
 
     def type_system_nominee(self):
         pass
