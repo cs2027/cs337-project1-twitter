@@ -1,8 +1,25 @@
 import json
 import re
-import spacy
+#import spacy
 import time
 import multiprocessing as mp
+import pandas as pd
+
+### Immports for sentiment analysis 
+import matplotlib.pyplot as plt
+import seaborn as sns
+color = sns.color_palette()
+import plotly.offline as py
+#py.init_notebook_mode(connected=True)
+import plotly.graph_objs as go
+import plotly.tools as tls
+import plotly.express as px
+from wordcloud import WordCloud
+import nltk
+import ssl
+import spacy
+
+
 
 # MISC: See here (https://stackoverflow.com/questions/38916452/nltk-download-ssl-certificate-verify-failed) for SSL certificate issues w/ NLTK downloads
 from nltk import pos_tag, word_tokenize, RegexpParser
@@ -10,12 +27,20 @@ from nltk.corpus import stopwords
 
 NLP = spacy.load("en_core_web_sm")
 PERSON_GRAMMAR = "NP: {<NNP><NNP>}"
+nltk.download('stopwords')
 STOP_WORDS = set(stopwords.words("english"))
+
 
 def main():
     frame = AwardFrame()
 
     frame.load_tweets()
+
+    PERSON_GRAMMAR = "NP: {<NNP><NNP>}"
+    nltk.download('stopwords')
+    nltk.download('punkt')
+    nltk.download('averaged_perceptron_tagger')
+    STOP_WORDS = set(stopwords.words("english"))
 
     # frame.generate_hosts()
 
@@ -45,8 +70,23 @@ class AwardFrame:
         self.awards_regex = ["(.*)goes to(.*)", "(.*)wins(.*)", "(.*)takes home(.*)", "(.*)receives(.*)", "(.*)is the winner of(.*)"]
         self.tweets = []
 
+        self.df = self.load_tweets()
+
+    ### Sentiment Analysis Code 
+
+    def create_stopword_list(self):
+      textt = "".join(review for review in self.df.Text)
+      wordcloud = WordCloud(stopwords=stopwords).generate(textt)
+
+      plt.imshow(wordcloud, interpolation='bilinear')
+      plt.axis("off")
+      plt.savefig('wordcloud.png')
+      plt.show()
+
+
+
     def load_tweets(self):
-        with open("./data/gg2013.json") as f:
+        with open("cs337-project1-twitter\data\gg2013.json") as f:
             tweets = json.load(f)
 
         self.tweets = list(map(lambda x: x["text"], tweets))
