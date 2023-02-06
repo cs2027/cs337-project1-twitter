@@ -10,7 +10,7 @@ from nltk.corpus import stopwords
 NLP = spacy.load("en_core_web_sm")
 PERSON_GRAMMAR = "NP: {<NNP><NNP>}"
 STOP_WORDS = set(stopwords.words("english"))
-
+ 
 def main():
     frame = AwardFrame()
 
