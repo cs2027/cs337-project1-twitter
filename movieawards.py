@@ -1,7 +1,6 @@
 import json
 import re
 import spacy
-import time
 import multiprocessing as mp
 from cassandra.cluster import Cluster
 from cassandra.auth import PlainTextAuthProvider
@@ -31,6 +30,10 @@ def main():
     frame.generate_awards(False)
     frame.parse_award_keywords()
 
+    frame.generate_related_tweets()
+
+    frame.generate_presenters()
+
     #frame.type_system_nominee()
     frame.generate_nominees(False)
 
@@ -46,6 +49,9 @@ class AwardFrame:
         self.award_suffixes = ["motion picture", "comedy or musical", "television", "drama", "film"]
         self.award_keywords = {}
 
+        self.related_tweets_nominees = {}
+        self.related_tweets_presenters = {}
+
         self.winner_regex = [f"best(.*){suffix}" for suffix in self.award_suffixes]
         self.nominee_regex = ["(.*)nominee(.*)", "(.*)nominate(.*)"]
         self.hosts_regex = ["(.*)"]
@@ -53,21 +59,21 @@ class AwardFrame:
 
         self.tweets = []
 
-    def lookup_name(self, name):
-      res = SESSION.execute(f"SELECT role FROM imdb.names WHERE names = {name}").one()
+    # def lookup_name(self, name):
+    #   res = SESSION.execute(f"SELECT role FROM imdb.names WHERE names = {name}").one()
 
-      if res:
-        return res
-      else:
-        None
+    #   if res:
+    #     return res
+    #   else:
+    #     None
 
-    def lookup_title(self, title):
-      res = SESSION.execute(f"SELECT type FROM imdb.titles WHERE title = {title}").one()
+    # def lookup_title(self, title):
+    #   res = SESSION.execute(f"SELECT type FROM imdb.titles WHERE title = {title}").one()
 
-      if res:
-        return res
-      else:
-        None
+    #   if res:
+    #     return res
+    #   else:
+    #     None
 
     def load_tweets(self):
         with open("./data/gg2013.json") as f:
@@ -75,7 +81,50 @@ class AwardFrame:
 
         self.tweets = list(map(lambda x: x["text"], tweets))
 
+    def generate_related_tweets(self):
+      print("STARTING RELATED TWEETS")
+
+      if not self.tweets:
+        self.load_tweets()
+
+      awards = self.results.keys()
+
+      for award in awards:
+        self.related_tweets_nominees[award] = {}
+        self.related_tweets_presenters[award] = {}
+
+      for award in awards:
+        award_group = [award] + self.award_groups[award] if award in self.award_groups else [award]
+        related_tweets_nominees = []
+        related_tweets_presenters = []
+
+        for tweet in self.tweets:
+          tweet_list = self.alpha_only_string(tweet).split(" ")
+
+          for award_candidate in award_group:
+            all_keywords = self.award_keywords[award_candidate]
+            num_keywords = 0
+
+            for keyword in all_keywords:
+              if keyword in tweet_list:
+                num_keywords += 1
+
+            if num_keywords / len(all_keywords) >= 0.5:
+                related_tweets_nominees.append(tweet)
+
+                if "present" in tweet.lower():
+                  related_tweets_presenters.append(tweet)
+
+                break
+
+        self.related_tweets_nominees[award] = related_tweets_nominees
+        self.related_tweets_presenters[award] = related_tweets_presenters
+
+      print("FINISHING RELATED TWEETS")
+
     def generate_awards(self, autofill = True):
+        print("STARTING GENERATE AWARDS")
+
         if not self.tweets:
             self.load_tweets()
 
@@ -108,6 +157,8 @@ class AwardFrame:
             awards = self.parse_award_names(awards)
 
             self.results = {award : {} for award in awards}
+
+        print("ENDING GENERATE AWARDS")
 
     def aggregate_awards(self, awards):
       n = len(awards)
@@ -193,6 +244,8 @@ class AwardFrame:
           self.award_keywords[award] = list(filter(lambda word: word not in STOP_WORDS and word != "-", award.split(" ")))
 
     def generate_nominees(self, autofill = True):
+        print("STARTING GENERATE NOMINEES")
+
         if not self.tweets:
             self.load_tweets()
 
@@ -219,6 +272,46 @@ class AwardFrame:
         self.write_to_file(self.results, "results_award_nominees.json")
         self.print_results()
 
+        print("ENDING GENERATE AWARDS")
+
+    def get_presenter_from_award(self, award):
+      results = {}
+
+      for tweet in self.related_tweets_presenters[award]:
+        tweet = self.alpha_only_string(tweet)
+        doc = NLP(tweet)
+
+        nltk_nominees = self.match_grammar_from_tweet(tweet)
+        spacy_nominees = []
+
+        for word in doc.ents:
+          if word.label_ == "PERSON":
+            nominee = str(word)
+            spacy_nominees.append(nominee)
+
+        nominee_candidates = list(set(nltk_nominees) & set(spacy_nominees))
+
+        for nominee_candidate in nominee_candidates:
+          if nominee_candidate.startswith("RT"):
+            nominee_candidate = nominee_candidate.split(" ")
+
+            if len(nominee_candidate) <= 2:
+              continue
+
+            nominee_candidate = " ".join(nominee_candidate[2:])
+
+          if self.contains_stopword(nominee_candidate) or "goldenglobe" in nominee_candidate.replace(" ", "").lower():
+            continue
+
+          if nominee_candidate in results:
+            results[nominee_candidate] = results[nominee_candidate] + 1
+          else:
+            results[nominee_candidate] = 1
+
+      top_results = sorted(results.items(), key = lambda x: x[1], reverse = True)[:3]
+      top_results = [award] + [result[0] for result in top_results]
+      return top_results
+
     def get_nominee_from_award(self, award):
       results = {}
       award_type = ""
@@ -230,25 +323,7 @@ class AwardFrame:
       else:
         award_type = "film"
 
-      award_group = [award] + self.award_groups[award] if award in self.award_groups else [award]
-      related_tweets = []
-
-      for tweet in self.tweets:
-        tweet_list = self.alpha_only_string(tweet).split(" ")
-
-        for award_candidate in award_group:
-          all_keywords = self.award_keywords[award_candidate]
-          num_keywords = 0
-
-          for keyword in all_keywords:
-            if keyword in tweet_list:
-              num_keywords += 1
-
-          if num_keywords / len(all_keywords) >= 0.5:
-              related_tweets.append(tweet)
-              break
-
-      for tweet in related_tweets:
+      for tweet in self.related_tweets_nominees[award]:
         tweet = self.alpha_only_string(tweet)
         doc = NLP(tweet)
 
@@ -306,7 +381,7 @@ class AwardFrame:
             else:
               results[nominee_candidate] = 1
 
-      top_results = sorted(results.items(), key = lambda x: x[1], reverse = True)[:10]
+      top_results = sorted(results.items(), key = lambda x: x[1], reverse = True)[:5]
       top_results = [award] + [result[0] for result in top_results]
       return top_results
 
@@ -398,7 +473,27 @@ class AwardFrame:
                 self.results[award]["winner"] = winner
 
     def generate_presenters(self):
-      pass
+      print("STARTING GENERATE PRESENTERS")
+
+      if not self.tweets:
+        self.load_tweets()
+
+      awards = self.results.keys()
+
+      pool = mp.Pool(mp.cpu_count())
+      results = pool.map(self.get_presenter_from_award, [award for award in awards])
+      pool.close()
+
+      for result in results:
+        award = result[0]
+        result.pop(0)
+
+        self.results[award]["presenters"] = result
+
+      self.write_to_file(self.results, "presenters.json")
+      self.print_results()
+
+      print("ENDING GENERATE AWARDS")
 
     def generate_hosts(self):
       if not self.tweets:
