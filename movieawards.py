@@ -51,6 +51,7 @@ class AwardFrame:
 
         self.related_tweets_nominees = {}
         self.related_tweets_presenters = {}
+        self.related_tweets_hosts = []
 
         self.winner_regex = [f"best(.*){suffix}" for suffix in self.award_suffixes]
         self.nominee_regex = ["(.*)nominee(.*)", "(.*)nominate(.*)"]
@@ -59,29 +60,29 @@ class AwardFrame:
 
         self.tweets = []
 
-    # def lookup_name(self, name):
-    #   res = SESSION.execute(f"SELECT role FROM imdb.names WHERE names = {name}").one()
+    def lookup_name(self, name):
+      res = SESSION.execute(f"SELECT role FROM imdb.names WHERE name = '{name}'").one()
 
-    #   if res:
-    #     return res
-    #   else:
-    #     None
+      if res:
+        return res
+      else:
+        None
 
-    # def lookup_title(self, title):
-    #   res = SESSION.execute(f"SELECT type FROM imdb.titles WHERE title = {title}").one()
+    def lookup_title(self, title):
+      res = SESSION.execute(f"SELECT * FROM imdb.titles WHERE title = '{title}'").one()
 
-    #   if res:
-    #     return res
-    #   else:
-    #     None
+      if res:
+        return res
+      else:
+        None
 
     def load_tweets(self):
         with open("./data/gg2013.json") as f:
             tweets = json.load(f)
 
-        max_idx = int(len(tweets) * 0.7)
+        # max_idx = int(len(tweets) * 0.7)
 
-        self.tweets = list(map(lambda x: x["text"], tweets[:max_idx]))
+        self.tweets = list(map(lambda x: x["text"], tweets))
 
     def generate_related_tweets(self):
       print("STARTING RELATED TWEETS")
@@ -95,12 +96,18 @@ class AwardFrame:
         self.related_tweets_nominees[award] = {}
         self.related_tweets_presenters[award] = {}
 
+      first_pass = True
+
       for award in awards:
         award_group = [award] + self.award_groups[award] if award in self.award_groups else [award]
         related_tweets_nominees = []
         related_tweets_presenters = []
 
         for tweet in self.tweets:
+          if first_pass:
+            if "host" in tweet.lower() and "next year" not in tweet.lower():
+              self.related_tweets_hosts.append(tweet)
+
           tweet_list = self.alpha_only_string(tweet).split(" ")
 
           for award_candidate in award_group:
@@ -118,6 +125,9 @@ class AwardFrame:
                   related_tweets_presenters.append(tweet)
 
                 break
+
+        if first_pass:
+          first_pass = False
 
         self.related_tweets_nominees[award] = related_tweets_nominees
         self.related_tweets_presenters[award] = related_tweets_presenters
@@ -342,13 +352,6 @@ class AwardFrame:
             if word.label_ == "PERSON":
               nominee = str(word)
               spacy_nominees.append(nominee)
-              # nominee_role = self.lookup_name(nominee)
-
-              # if nominee_role == "actor" and award_type == "actor":
-              #   spacy_nominees.append(nominee)
-
-              # if nominee_role == "actress" and award_type == "actress":
-              #   spacy_nominees.append(nominee)
 
           nominee_candidates = list(set(nltk_nominees) & set(spacy_nominees))
 
@@ -383,13 +386,45 @@ class AwardFrame:
             if self.contains_stopword(nominee_candidate) or "goldenglobe" in nominee_candidate.replace(" ", "").lower():
               continue
 
-            if nominee_candidate in results:
-              results[nominee_candidate] = results[nominee_candidate] + 1
-            else:
-              results[nominee_candidate] = 1
+            nominee_lookup = self.lookup_title(nominee_candidate)
 
-      top_results = sorted(results.items(), key = lambda x: x[1], reverse = True)[:5]
-      top_results = [award] + [result[0] for result in top_results]
+            if nominee_lookup is not None:
+              if nominee_candidate in results:
+                results[nominee_candidate] = results[nominee_candidate] + 1
+              else:
+                results[nominee_candidate] = 1
+
+      sorted_results = sorted(results.items(), key = lambda x: x[1], reverse = True)
+      sorted_results = [result[0] for result in sorted_results]
+
+      top_results = [award]
+      i = 0
+
+      if award_type == "actor" or award_type == "actress":
+        for result in sorted_results:
+          nominee_role = self.lookup_name(result)
+
+          if nominee_role == "actor" and award_type == "actor":
+            top_results.append(result)
+            i += 1
+
+          if nominee_role == "actress" and award_type == "actress":
+            top_results.append(result)
+            i += 1
+
+          if i == 5:
+            break
+      else:
+        for result in sorted_results:
+          nominee_role = self.lookup_title(result)
+
+          if nominee_role:
+            top_results.append(result)
+            i += 1
+
+          if i == 5:
+            break
+
       return top_results
 
     def get_proper_nouns(self, tweet):
@@ -517,23 +552,20 @@ class AwardFrame:
 
       results = {}
 
-      for tweet in self.tweets:
-        if "host" in tweet.lower() and "next year" not in tweet.lower():
-          doc = NLP(tweet)
-          for ent in doc.ents:
-            if ent.label_ == 'PERSON' and len(ent.text.split(" ")) > 1:
-              if ent.text in results:
-                results[ent.text] += 1
-              else:
-                results[ent.text] = 1
+      for tweet in self.related_tweets_hosts():
+        doc = NLP(tweet)
+        for ent in doc.ents:
+          if ent.label_ == 'PERSON' and len(ent.text.split(" ")) > 1:
+            if ent.text in results:
+              results[ent.text] += 1
+            else:
+              results[ent.text] = 1
 
       results = sorted(results.items(), key=(lambda x: x[1]), reverse=True)[0:2]
       hosts = [x[0] for x in results]
-      print(hosts)
       self.results["hosts"] = hosts
 
     def alpha_only_string(self, s):
-      # TODO: Get rid of @[...]
       s = re.sub("[^a-zA-Z ]", "", s)
       s = re.sub(' +', ' ', s)
       return s
