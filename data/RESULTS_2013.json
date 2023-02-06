@@ -1,188 +1,321 @@
 {
   "best motion picture": {
-    "presenters": [],
+    "presenters": ["Julia Roberts"],
     "nominees": [
-      "Anne Hathaway",
       "Christoph Waltz",
       "Django Unchained",
+      "Anne Hathaway",
       "Adeles Skyfall",
       "Best"
     ],
-    "winner": "Anne Hathaway"
+    "winner": "Christoph Waltz"
   },
   "best original song in a motion picture": {
-    "presenters": [],
-    "nominees": ["OfficialAdele", "Congrats", "Adele", "Skyfall", "Oscar"],
+    "presenters": ["Julia Roberts"],
+    "nominees": [
+      "OfficialAdele",
+      "Congrats",
+      "Adele",
+      "Skyfall",
+      "Adeles Skyfall"
+    ],
     "winner": "OfficialAdele"
   },
-  "best actress motion picture": {
-    "presenters": ["Dennis Quaid", "Kerry Washington", "Bill Clinton"],
+  "best actress in a motion picture": {
+    "presenters": ["Julia Roberts", "Dennis Quaid", "Kerry Washington"],
     "nominees": [
-      "Anne Hathaway",
-      "Jennifer Lawrence",
       "Christoph Waltz",
-      "Claire Danes",
-      "Quentin Tarantino"
+      "Jennifer Lawrence",
+      "Anne Hathaway",
+      "Julianne Moore",
+      "Adeles Skyfall"
     ],
-    "winner": "Anne Hathaway"
+    "winner": "Christoph Waltz"
   },
   "best supporting actress motion picture": {
-    "presenters": ["Dennis Quaid", "Kerry Washington"],
+    "presenters": ["Julia Roberts", "Dennis Quaid", "Kerry Washington"],
     "nominees": [
-      "Anne Hathaway",
       "Christoph Waltz",
+      "Anne Hathaway",
       "Adeles Skyfall",
-      "Quentin Tarantino",
-      "Jennifer Lawrence"
+      "Jennifer Lawrence",
+      "Maggie Smith"
     ],
-    "winner": "Anne Hathaway"
+    "winner": "Christoph Waltz"
+  },
+  "best actor in a motion picture": {
+    "presenters": ["Julia Roberts"],
+    "nominees": [
+      "Christoph Waltz",
+      "Anne Hathaway",
+      "Adeles Skyfall",
+      "Django Unchained",
+      "Mychael Danna"
+    ],
+    "winner": "Christoph Waltz"
   },
   "best actress in a comedy or musical": {
-    "presenters": ["Kristen Wiig", "Will Ferrell", "Dennis Quaid"],
+    "presenters": ["Kristen Wiig", "Will Ferrell", "Kerry Washington"],
     "nominees": [
       "Jennifer Lawrence",
-      "Lena Dunham",
       "Anne Hathaway",
-      "Don Cheadle",
-      "Claire Danes"
+      "Julianne Moore",
+      "Maggie Smith",
+      "Jessica Lange"
     ],
     "winner": "Jennifer Lawrence"
   },
   "best actress - motion picture comedy or musical": {
-    "presenters": ["Bill Clinton", "Jennifer Lawrence"],
+    "presenters": ["Julia Roberts", "Jennifer Lawrence", "Bill Clinton"],
     "nominees": [
       "Anne Hathaway",
-      "Lena Dunham",
       "Jennifer Lawrence",
       "Adeles Skyfall",
-      "Quentin Tarantino"
+      "Julianne Moore",
+      "Yay Skyfall"
     ],
     "winner": "Anne Hathaway"
   },
   "best actor in a comedy or musical": {
-    "presenters": ["Kristen Wiig", "Will Ferrell", "Bill Clinton"],
+    "presenters": ["Will Ferrell", "Kristen Wiig", "Jennifer Lawrence"],
     "nominees": [
       "Christoph Waltz",
-      "Lena Dunham",
-      "Don Cheadle",
       "Jennifer Lawrence",
-      "Django Unchained"
+      "Django Unchained",
+      "Kevin Costner",
+      "Bill Clinton"
     ],
     "winner": "Christoph Waltz"
   },
   "best actress in a tv series - comedy or musical": {
-    "presenters": ["Dennis Quaid", "Kerry Washington", "Bill Clinton"],
+    "presenters": ["Kerry Washington", "Dennis Quaid", "Bill Clinton"],
     "nominees": [
-      "Lena Dunham",
-      "Don Cheadle",
       "Jennifer Lawrence",
-      "Amy Poehler",
-      "George Clooney"
+      "Maggie Smith",
+      "Jessica Lange",
+      "Kerry Washington",
+      "Dennis Quaid"
     ],
-    "winner": "Lena Dunham"
+    "winner": "Jennifer Lawrence"
   },
-  "best show television": {
-    "presenters": [],
-    "nominees": ["Homeland", "Rudd", "Selma Hayek", "Homelands", "Don Cheadle"],
-    "winner": "Homeland"
+  "best tv series - comedy or musical": {
+    "presenters": ["Kerry Washington", "Dennis Quaid", "Jay Leno"],
+    "nominees": [
+      "Jennifer Lawrence",
+      "Silver Lining Playbook",
+      "SilverLinings",
+      "Dennis Quaid",
+      "Kerry Washington"
+    ],
+    "winner": "Jennifer Lawrence"
   },
-  "best actor tv drama": {
-    "presenters": ["Dennis Quaid", "Kerry Washington"],
+  "best comedy or musical": {
+    "presenters": ["Kristen Wiig", "Will Ferrell", "Bill Clinton"],
+    "nominees": [
+      "Jennifer Lawrence",
+      "Lawrence",
+      "Silver Linings Playbook",
+      "JLAW Jennifer Lawrence",
+      "Meryl Heeee"
+    ],
+    "winner": "Jennifer Lawrence"
+  },
+  "best actor in a motion picture comedy or musical": {
+    "presenters": ["Julia Roberts", "Jay Leno", "Jimmy Fallon"],
     "nominees": [
       "Christoph Waltz",
-      "Claire Danes",
+      "Jennifer Lawrence",
+      "Adeles Skyfall",
+      "Anne Hathaway",
+      "Eric Stonestreet"
+    ],
+    "winner": "Christoph Waltz"
+  },
+  "best picture - comedy or musical": {
+    "presenters": ["Julia Roberts", "Kristen Wiig", "Will Ferrell"],
+    "nominees": [
+      "Jennifer Lawrence",
+      "Adeles Skyfall",
+      "Lincoln",
+      "Adele",
+      "Lawrence"
+    ],
+    "winner": "Jennifer Lawrence"
+  },
+  "best motion picture comedy or musical": {
+    "presenters": ["Julia Roberts", "Jay Leno", "Jimmy Fallon"],
+    "nominees": [
+      "Jennifer Lawrence",
+      "Adeles Skyfall",
+      "Adele",
+      "Anne Hathaway",
+      "Silver Lining Playbook"
+    ],
+    "winner": "Jennifer Lawrence"
+  },
+  "best show television": {
+    "presenters": ["Julia Roberts"],
+    "nominees": ["Homeland", "Rudd", "Selma Hayek", "Amy", "Homelands"],
+    "winner": "Homeland"
+  },
+  "best actor in a drama": {
+    "presenters": ["Julia Roberts"],
+    "nominees": [
+      "Christoph Waltz",
       "Damien Lewis",
-      "Don Cheadle",
-      "Kevin Costner"
+      "Django Unchained",
+      "Kevin Costner",
+      "Bill Clinton"
+    ],
+    "winner": "Christoph Waltz"
+  },
+  "best actor tv drama": {
+    "presenters": ["Julia Roberts", "Kerry Washington", "Dennis Quaid"],
+    "nominees": [
+      "Christoph Waltz",
+      "Damien Lewis",
+      "Kevin Costner",
+      "Django Unchained",
+      "Bill Clinton"
     ],
     "winner": "Christoph Waltz"
   },
   "best drama": {
-    "presenters": ["Kristen Wiig", "Will Ferrell", "Lindsay Lohan"],
+    "presenters": ["Kristen Wiig", "Will Ferrell", "Julia Roberts"],
     "nominees": [
       "Homeland",
-      "Tina Fey",
       "Adele",
+      "Christoph Waltz",
       "Anne Hathaway",
-      "Christoph Waltz"
+      "Jennifer Lawrence"
     ],
     "winner": "Homeland"
   },
   "best tv drama": {
-    "presenters": ["Dennis Quaid", "Kerry Washington"],
+    "presenters": ["Julia Roberts", "Dennis Quaid", "Kerry Washington"],
     "nominees": [
       "Homeland",
-      "Claire Danes",
-      "wears",
       "httptcoRfveCQT httptcoHDZUWTGH",
-      "ClaireDanes"
+      "Homelands Damian Lewis",
+      "Damian Lewis",
+      "Bad"
     ],
     "winner": "Homeland"
   },
   "best tv series drama": {
-    "presenters": ["Dennis Quaid", "Kerry Washington", "Paul Rudd"],
+    "presenters": ["Julia Roberts", "Dennis Quaid", "Kerry Washington"],
     "nominees": [
       "Homeland",
-      "Claire Danes",
       "Damien Lewis",
-      "wears",
-      "Lena Dunham"
+      "Homeland This",
+      "Damian Lewis",
+      "httptcoRfveCQT httptcoHDZUWTGH"
     ],
     "winner": "Homeland"
   },
   "best actress in a drama": {
-    "presenters": ["Dennis Quaid", "Kerry Washington", "Bill Clinton"],
+    "presenters": ["Julia Roberts", "Kerry Washington", "Dennis Quaid"],
     "nominees": [
       "Jennifer Lawrence",
-      "Claire Danes",
       "Anne Hathaway",
       "Julianne Moore",
-      "Lena Dunham"
+      "Maggie Smith",
+      "Jessica Lange"
     ],
     "winner": "Jennifer Lawrence"
   },
   "best actress in a tv - drama": {
-    "presenters": ["Dennis Quaid", "Kerry Washington", "Bill Clinton"],
+    "presenters": ["Julia Roberts", "Kerry Washington", "Dennis Quaid"],
     "nominees": [
       "Jennifer Lawrence",
-      "Claire Danes",
       "Anne Hathaway",
-      "Lena Dunham",
-      "Julianne Moore"
+      "Julianne Moore",
+      "Maggie Smith",
+      "Jessica Lange"
     ],
     "winner": "Jennifer Lawrence"
   },
   "best actress in a tv series - drama": {
-    "presenters": ["Dennis Quaid", "Kerry Washington"],
+    "presenters": ["Kerry Washington", "Dennis Quaid"],
     "nominees": [
-      "Claire Danes",
-      "Lena Dunham",
-      "Amy Poehler",
-      "George Clooney",
-      "Maggie Smith"
+      "Maggie Smith",
+      "Damien Lewis",
+      "Jessica Lange",
+      "Kerry Washington",
+      "Dennis Quaid"
     ],
-    "winner": "Claire Danes"
+    "winner": "Maggie Smith"
+  },
+  "best actress in a motion picture drama": {
+    "presenters": ["Julia Roberts"],
+    "nominees": [
+      "Anne Hathaway",
+      "Adeles Skyfall",
+      "Jennifer Lawrence",
+      "Maggie Smith",
+      "Julianne Moore"
+    ],
+    "winner": "Anne Hathaway"
+  },
+  "best actor in a motion picture drama": {
+    "presenters": ["Julia Roberts"],
+    "nominees": [
+      "Christoph Waltz",
+      "Adeles Skyfall",
+      "Jennifer Lawrence",
+      "Anne Hathaway",
+      "Damien Lewis"
+    ],
+    "winner": "Christoph Waltz"
+  },
+  "best picture drama": {
+    "presenters": ["Julia Roberts"],
+    "nominees": [
+      "Homeland",
+      "Adeles Skyfall",
+      "Lincoln",
+      "httptcoRfveCQT httptcoHDZUWTGH",
+      "Homelands Damian Lewis"
+    ],
+    "winner": "Homeland"
+  },
+  "best motion picture drama": {
+    "presenters": ["Julia Roberts"],
+    "nominees": [
+      "Homeland",
+      "Christoph Waltz",
+      "Django Unchained",
+      "Anne Hathaway",
+      "Adeles Skyfall"
+    ],
+    "winner": "Homeland"
   },
   "best film": {
     "presenters": ["Kristen Wiig", "Bill Clinton", "Will Ferrell"],
     "nominees": [
-      "Tina Fey",
       "Homeland",
       "Adele",
-      "Anne Hathaway",
-      "Christoph Waltz"
+      "Christoph Waltz",
+      "Tina Fey",
+      "Anne Hathaway"
     ],
-    "winner": "Tina Fey"
+    "winner": "Homeland"
   },
   "best actress in a comedic or musical film": {
     "presenters": [],
-    "nominees": ["Jennifer Lawrence", "Lena Dunham"],
+    "nominees": ["Jennifer Lawrence"],
     "winner": "Jennifer Lawrence"
   },
   "best foreign film": {
     "presenters": ["Lindsay Lohan", "Arnold Schwarzenegger"],
-    "nominees": ["Brave", "Amour", "Lawrence", "DisneyPixars Brave", "Django"],
-    "winner": "Brave"
+    "nominees": [
+      "Lawrence",
+      "Christoph Waltz",
+      "Django",
+      "Nominee",
+      "TV Amy Poehler"
+    ],
+    "winner": "Lawrence"
   },
   "best foreign language film": {
     "presenters": [
@@ -190,30 +323,47 @@
       "Arnold Schwarzenegger",
       "Legends Stallone"
     ],
-    "nominees": ["Brave", "Amour", "Lawrence", "DisneyPixars Brave", "Django"],
-    "winner": "Brave"
+    "nominees": [
+      "Lawrence",
+      "Christoph Waltz",
+      "Django",
+      "Nominee",
+      "TV Amy Poehler"
+    ],
+    "winner": "Lawrence"
   },
   "best animated film": {
     "presenters": ["Lindsay Lohan", "Arnold Schwarzenegger"],
     "nominees": [
-      "Brave",
-      "Amour",
       "Lawrence",
-      "DisneyPixars Brave",
-      "Congratulations"
+      "Christoph Waltz",
+      "Django",
+      "Nominee",
+      "TV Amy Poehler"
     ],
-    "winner": "Brave"
+    "winner": "Lawrence"
   },
   "best animated feature film": {
     "presenters": ["Lindsay Lohan", "Arnold Schwarzenegger"],
     "nominees": [
-      "Brave",
-      "Amour",
       "Lawrence",
-      "DisneyPixars Brave",
-      "Congratulations"
+      "Christoph Waltz",
+      "Django",
+      "Nominee",
+      "TV Amy Poehler"
     ],
-    "winner": "Brave"
+    "winner": "Lawrence"
+  },
+  "best actress in a dramatic film": {
+    "presenters": ["Lindsay Lohan", "Dennis Quaid", "Kerry Washington"],
+    "nominees": [
+      "Jennifer Lawrence",
+      "Anne Hathaway",
+      "Julianne Moore",
+      "Maggie Smith",
+      "Christoph Waltz"
+    ],
+    "winner": "Jennifer Lawrence"
   },
   "hosts": ["Amy Poehler", "Tina Fey"]
 }
