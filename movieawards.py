@@ -362,13 +362,10 @@ class AwardFrame:
             if self.contains_stopword(nominee_candidate) or "goldenglobe" in nominee_candidate.replace(" ", "").lower():
               continue
 
-            nominee_lookup = self.lookup_title(nominee_candidate)
-
-            if nominee_lookup is not None:
-              if nominee_candidate in results:
-                results[nominee_candidate] = results[nominee_candidate] + 1
-              else:
-                results[nominee_candidate] = 1
+            if nominee_candidate in results:
+              results[nominee_candidate] = results[nominee_candidate] + 1
+            else:
+              results[nominee_candidate] = 1
 
       top_results = sorted(results.items(), key = lambda x: x[1], reverse = True)[:5]
       top_results = [award] + [result[0] for result in top_results]
