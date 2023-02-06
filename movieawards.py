@@ -25,8 +25,6 @@ def main():
 
     frame.load_tweets()
 
-    # frame.generate_hosts()
-
     frame.generate_awards(False)
     frame.parse_award_keywords()
 
@@ -34,12 +32,14 @@ def main():
 
     frame.generate_presenters()
 
-    #frame.type_system_nominee()
     frame.generate_nominees(False)
 
-    # frame.generate_winners()
+    frame.generate_winners()
 
-    # frame.print_results()
+    frame.generate_hosts()
+
+    frame.print_results()
+    frame.write_to_file(frame.results, "RESULTS_2013.json")
 
 class AwardFrame:
     def __init__(self):
@@ -79,7 +79,9 @@ class AwardFrame:
         with open("./data/gg2013.json") as f:
             tweets = json.load(f)
 
-        self.tweets = list(map(lambda x: x["text"], tweets))
+        max_idx = int(len(tweets) * 0.7)
+
+        self.tweets = list(map(lambda x: x["text"], tweets[:max_idx]))
 
     def generate_related_tweets(self):
       print("STARTING RELATED TWEETS")
@@ -259,9 +261,14 @@ class AwardFrame:
             awards = self.results.keys()
 
             # Parallelizing reference: https://www.machinelearningplus.com/python/parallel-processing-python/
-            pool = mp.Pool(mp.cpu_count())
-            results = pool.map(self.get_nominee_from_award, [award for award in awards])
-            pool.close()
+            # pool = mp.Pool(mp.cpu_count())
+            # results = pool.map(self.get_nominee_from_award, [award for award in awards])
+            # pool.close()
+
+            results = []
+
+            for award in awards:
+              results.append(self.get_nominee_from_award(award))
 
             for result in results:
               award = result[0]
@@ -425,6 +432,8 @@ class AwardFrame:
         pass
 
     def generate_winners(self):
+        print("STARTING GENERATE WINNERS")
+
         if not self.tweets:
             self.load_tweets()
 
@@ -472,6 +481,8 @@ class AwardFrame:
 
                 self.results[award]["winner"] = winner
 
+            print("ENDING GENERATE WINNERS")
+
     def generate_presenters(self):
       print("STARTING GENERATE PRESENTERS")
 
@@ -480,9 +491,14 @@ class AwardFrame:
 
       awards = self.results.keys()
 
-      pool = mp.Pool(mp.cpu_count())
-      results = pool.map(self.get_presenter_from_award, [award for award in awards])
-      pool.close()
+      # pool = mp.Pool(mp.cpu_count())
+      # results = pool.map(self.get_presenter_from_award, [award for award in awards])
+      # pool.close()
+
+      results = []
+
+      for award in awards:
+        results.append(self.get_presenter_from_award(award))
 
       for result in results:
         award = result[0]
@@ -493,7 +509,7 @@ class AwardFrame:
       self.write_to_file(self.results, "presenters.json")
       self.print_results()
 
-      print("ENDING GENERATE AWARDS")
+      print("ENDING GENERATE NOMINEES")
 
     def generate_hosts(self):
       if not self.tweets:
@@ -511,7 +527,10 @@ class AwardFrame:
               else:
                 results[ent.text] = 1
 
-      print(sorted(results.items(), key=(lambda x: x[1]), reverse=True)[0:2])
+      results = sorted(results.items(), key=(lambda x: x[1]), reverse=True)[0:2]
+      hosts = [x[0] for x in results]
+      print(hosts)
+      self.results["hosts"] = hosts
 
     def alpha_only_string(self, s):
       # TODO: Get rid of @[...]
