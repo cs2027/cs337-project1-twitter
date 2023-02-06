@@ -2,16 +2,10 @@ import json
 import re
 import spacy
 import multiprocessing as mp
-from cassandra.cluster import Cluster
-from cassandra.auth import PlainTextAuthProvider
 
 # MISC: See here (https://stackoverflow.com/questions/38916452/nltk-download-ssl-certificate-verify-failed) for SSL certificate issues w/ NLTK downloads
 from nltk import pos_tag, word_tokenize, RegexpParser
 from nltk.corpus import stopwords
-
-cloud_config= {
-  'secure_connect_bundle': 'secure-connect-nlp.zip'
-}
 
 NLP = spacy.load("en_core_web_sm")
 PERSON_GRAMMAR = "NP: {<NNP><NNP>}"
@@ -60,30 +54,6 @@ class AwardFrame:
 
         self.tweets = []
 
-    @classmethod
-    def _setup(cls):
-      auth_provider = PlainTextAuthProvider('GPteigKOPCAybnALbhbZsFUd', 'uBjcp8pcknnG+Ja3tkRX+5I-Ng9+3KLt0p-BC1LDCOTBZLftZ-AkIZNMbxJMXMj.kz08-cHmpv46UwlgSh4J8sK_FgW.bOdsrf3JQdQx6JT4NAHtYAN+FZ+3gvFFdYtp')
-      cluster = Cluster(cloud=cloud_config, auth_provider=auth_provider)
-      cls.session = cluster.connect()
-
-    @classmethod
-    def lookup_name(cls, name):
-      res = cls.session.execute(f"SELECT role FROM imdb.names WHERE name = '{name}'").one()
-
-      if res:
-        return res
-      else:
-        None
-
-    @classmethod
-    def lookup_title(cls, title):
-      res = cls.session.execute(f"SELECT * FROM imdb.titles WHERE title = '{title}'").one()
-
-      if res:
-        return res
-      else:
-        None
-
     def load_tweets(self):
         with open("./data/gg2013.json") as f:
             tweets = json.load(f)
@@ -102,7 +72,7 @@ class AwardFrame:
         self.related_tweets_nominees[award] = {}
         self.related_tweets_presenters[award] = {}
 
-      pool = mp.Pool(mp.cpu_count(), initializer=self._setup, initargs=())
+      pool = mp.Pool(mp.cpu_count())
       results = pool.map(self.get_related_tweets_from_award, [award for award in awards])
       pool.close()
 
@@ -119,9 +89,7 @@ class AwardFrame:
       related_tweets_nominees = []
       related_tweets_presenters = []
 
-      max_idx = len(self.tweets) // 2
-
-      for idx, tweet in enumerate(self.tweets):
+      for tweet in self.tweets:
         tweet_list = self.alpha_only_string(tweet).split(" ")
 
         for award_candidate in award_group:
@@ -133,8 +101,7 @@ class AwardFrame:
               num_keywords += 1
 
           if num_keywords / len(all_keywords) >= 0.5:
-              if idx <= max_idx:
-                related_tweets_nominees.append(tweet)
+              related_tweets_nominees.append(tweet)
 
               if "present" in tweet.lower():
                 related_tweets_presenters.append(tweet)
@@ -280,7 +247,7 @@ class AwardFrame:
             awards = self.results.keys()
 
             # Parallelizing reference: https://www.machinelearningplus.com/python/parallel-processing-python/
-            pool = mp.Pool(mp.cpu_count(), initializer=self._setup, initargs=())
+            pool = mp.Pool(mp.cpu_count())
             results = pool.map(self.get_nominee_from_award, [award for award in awards])
             pool.close()
 
@@ -403,47 +370,8 @@ class AwardFrame:
               else:
                 results[nominee_candidate] = 1
 
-      sorted_results = sorted(results.items(), key = lambda x: x[1], reverse = True)
-      sorted_results = [result[0] for result in sorted_results]
-
-      top_results = [award]
-      i = 0
-
-      if award_type == "actor" or award_type == "actress":
-        for result in sorted_results:
-          nominee_role = ""
-
-          if result in self.names_cache:
-            nominee_role = self.names_cache[result]
-          else:
-            nominee_role = self.lookup_name(result)
-
-          if nominee_role == "actor" and award_type == "actor":
-            top_results.append(result)
-            i += 1
-
-          if nominee_role == "actress" and award_type == "actress":
-            top_results.append(result)
-            i += 1
-
-          if i == 5:
-            break
-      else:
-        for result in sorted_results:
-          nominee_role = ""
-
-          if result in self.titles_cache:
-            nominee_role = self.titles_cache[result]
-          else:
-            nominee_role = self.lookup_title(result)
-
-          if nominee_role:
-            top_results.append(result)
-            i += 1
-
-          if i == 5:
-            break
-
+      top_results = sorted(results.items(), key = lambda x: x[1], reverse = True)[:5]
+      top_results = [award] + [result[0] for result in top_results]
       return top_results
 
     def get_proper_nouns(self, tweet):
@@ -542,7 +470,7 @@ class AwardFrame:
 
       awards = self.results.keys()
 
-      pool = mp.Pool(mp.cpu_count(), initializer=self._setup, initargs=())
+      pool = mp.Pool(mp.cpu_count())
       results = pool.map(self.get_presenter_from_award, [award for award in awards])
       pool.close()
 
