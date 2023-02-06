@@ -12,9 +12,6 @@ from nltk.corpus import stopwords
 cloud_config= {
   'secure_connect_bundle': 'secure-connect-nlp.zip'
 }
-auth_provider = PlainTextAuthProvider('GPteigKOPCAybnALbhbZsFUd', 'uBjcp8pcknnG+Ja3tkRX+5I-Ng9+3KLt0p-BC1LDCOTBZLftZ-AkIZNMbxJMXMj.kz08-cHmpv46UwlgSh4J8sK_FgW.bOdsrf3JQdQx6JT4NAHtYAN+FZ+3gvFFdYtp')
-cluster = Cluster(cloud=cloud_config, auth_provider=auth_provider)
-SESSION = cluster.connect()
 
 NLP = spacy.load("en_core_web_sm")
 PERSON_GRAMMAR = "NP: {<NNP><NNP>}"
@@ -51,25 +48,35 @@ class AwardFrame:
 
         self.related_tweets_nominees = {}
         self.related_tweets_presenters = {}
-        self.related_tweets_hosts = []
 
         self.winner_regex = [f"best(.*){suffix}" for suffix in self.award_suffixes]
         self.nominee_regex = ["(.*)nominee(.*)", "(.*)nominate(.*)"]
         self.hosts_regex = ["(.*)"]
         self.awards_regex = ["(.*)goes to(.*)", "(.*)wins(.*)", "(.*)takes home(.*)", "(.*)receives(.*)", "(.*)is the winner of(.*)"]
 
+        self.names_cache = {}
+        self.titles_cache = {}
+
         self.tweets = []
 
-    def lookup_name(self, name):
-      res = SESSION.execute(f"SELECT role FROM imdb.names WHERE name = '{name}'").one()
+    @classmethod
+    def _setup(cls):
+      auth_provider = PlainTextAuthProvider('GPteigKOPCAybnALbhbZsFUd', 'uBjcp8pcknnG+Ja3tkRX+5I-Ng9+3KLt0p-BC1LDCOTBZLftZ-AkIZNMbxJMXMj.kz08-cHmpv46UwlgSh4J8sK_FgW.bOdsrf3JQdQx6JT4NAHtYAN+FZ+3gvFFdYtp')
+      cluster = Cluster(cloud=cloud_config, auth_provider=auth_provider)
+      cls.session = cluster.connect()
+
+    @classmethod
+    def lookup_name(cls, name):
+      res = cls.session.execute(f"SELECT role FROM imdb.names WHERE name = '{name}'").one()
 
       if res:
         return res
       else:
         None
 
-    def lookup_title(self, title):
-      res = SESSION.execute(f"SELECT * FROM imdb.titles WHERE title = '{title}'").one()
+    @classmethod
+    def lookup_title(cls, title):
+      res = cls.session.execute(f"SELECT * FROM imdb.titles WHERE title = '{title}'").one()
 
       if res:
         return res
@@ -79,8 +86,6 @@ class AwardFrame:
     def load_tweets(self):
         with open("./data/gg2013.json") as f:
             tweets = json.load(f)
-
-        # max_idx = int(len(tweets) * 0.7)
 
         self.tweets = list(map(lambda x: x["text"], tweets))
 
@@ -96,43 +101,45 @@ class AwardFrame:
         self.related_tweets_nominees[award] = {}
         self.related_tweets_presenters[award] = {}
 
-      first_pass = True
+      pool = mp.Pool(mp.cpu_count(), initializer=self._setup, initargs=())
+      results = pool.map(self.get_related_tweets_from_award, [award for award in awards])
+      pool.close()
 
-      for award in awards:
-        award_group = [award] + self.award_groups[award] if award in self.award_groups else [award]
-        related_tweets_nominees = []
-        related_tweets_presenters = []
+      results = []
 
-        for tweet in self.tweets:
-          if first_pass:
-            if "host" in tweet.lower() and "next year" not in tweet.lower():
-              self.related_tweets_hosts.append(tweet)
-
-          tweet_list = self.alpha_only_string(tweet).split(" ")
-
-          for award_candidate in award_group:
-            all_keywords = self.award_keywords[award_candidate]
-            num_keywords = 0
-
-            for keyword in all_keywords:
-              if keyword in tweet_list:
-                num_keywords += 1
-
-            if num_keywords / len(all_keywords) >= 0.5:
-                related_tweets_nominees.append(tweet)
-
-                if "present" in tweet.lower():
-                  related_tweets_presenters.append(tweet)
-
-                break
-
-        if first_pass:
-          first_pass = False
+      for result in results:
+        [award, related_tweets_nominees, related_tweets_presenters] = result
 
         self.related_tweets_nominees[award] = related_tweets_nominees
         self.related_tweets_presenters[award] = related_tweets_presenters
 
       print("FINISHING RELATED TWEETS")
+
+    def get_related_tweets_from_award(self, award):
+      award_group = [award] + self.award_groups[award] if award in self.award_groups else [award]
+      related_tweets_nominees = []
+      related_tweets_presenters = []
+
+      for tweet in self.tweets:
+        tweet_list = self.alpha_only_string(tweet).split(" ")
+
+        for award_candidate in award_group:
+          all_keywords = self.award_keywords[award_candidate]
+          num_keywords = 0
+
+          for keyword in all_keywords:
+            if keyword in tweet_list:
+              num_keywords += 1
+
+          if num_keywords / len(all_keywords) >= 0.5:
+              related_tweets_nominees.append(tweet)
+
+              if "present" in tweet.lower():
+                related_tweets_presenters.append(tweet)
+
+              break
+
+        return [award, related_tweets_nominees, related_tweets_presenters]
 
     def generate_awards(self, autofill = True):
         print("STARTING GENERATE AWARDS")
@@ -271,9 +278,9 @@ class AwardFrame:
             awards = self.results.keys()
 
             # Parallelizing reference: https://www.machinelearningplus.com/python/parallel-processing-python/
-            # pool = mp.Pool(mp.cpu_count())
-            # results = pool.map(self.get_nominee_from_award, [award for award in awards])
-            # pool.close()
+            pool = mp.Pool(mp.cpu_count(), initializer=self._setup, initargs=())
+            results = pool.map(self.get_nominee_from_award, [award for award in awards])
+            pool.close()
 
             results = []
 
@@ -463,9 +470,6 @@ class AwardFrame:
       matches = list(chunk_tree.subtrees(filter = lambda tree: tree.label() == "NP"))
       return list(map(lambda x : x[0][0] + " " + x[1][0], matches))
 
-    def type_system_nominee(self):
-        pass
-
     def generate_winners(self):
         print("STARTING GENERATE WINNERS")
 
@@ -526,9 +530,9 @@ class AwardFrame:
 
       awards = self.results.keys()
 
-      # pool = mp.Pool(mp.cpu_count())
-      # results = pool.map(self.get_presenter_from_award, [award for award in awards])
-      # pool.close()
+      pool = mp.Pool(mp.cpu_count(), initializer=self._setup, initargs=())
+      results = pool.map(self.get_presenter_from_award, [award for award in awards])
+      pool.close()
 
       results = []
 
@@ -547,23 +551,28 @@ class AwardFrame:
       print("ENDING GENERATE NOMINEES")
 
     def generate_hosts(self):
+      print("STARTING GENERATE HOSTS")
+
       if not self.tweets:
         self.load_tweets()
 
       results = {}
 
       for tweet in self.related_tweets_hosts():
-        doc = NLP(tweet)
-        for ent in doc.ents:
-          if ent.label_ == 'PERSON' and len(ent.text.split(" ")) > 1:
-            if ent.text in results:
-              results[ent.text] += 1
-            else:
-              results[ent.text] = 1
+        if "host" in tweet.lower() and "next year" not in tweet.lower():
+          doc = NLP(tweet)
+          for ent in doc.ents:
+            if ent.label_ == 'PERSON' and len(ent.text.split(" ")) > 1:
+              if ent.text in results:
+                results[ent.text] += 1
+              else:
+                results[ent.text] = 1
 
       results = sorted(results.items(), key=(lambda x: x[1]), reverse=True)[0:2]
       hosts = [x[0] for x in results]
       self.results["hosts"] = hosts
+
+      print("ENDING GENERATE HOSTS")
 
     def alpha_only_string(self, s):
       s = re.sub("[^a-zA-Z ]", "", s)
