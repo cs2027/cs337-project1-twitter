@@ -2,6 +2,7 @@
 
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning) 
+import gg_apifake
 
 import re
 import heapq
@@ -38,18 +39,14 @@ def main(hosts):
     tweets = list(map(lambda x: x["text"], tweets))
 
     partytweets(tweets)
+    winnertweets(tweets)
     results = []
     for host in hosts:
         for tweet in tweets:
             match = re.search(host, tweet.lower())
             if match:
                 results.append(tweet)
-    #    if 'tina fey' in tweet.lower() or 'amy poehler' in tweet.lower() or 'tina' in tweet.lower() or 'amy' in tweet.lower():
-    #        results.append(tweet)
-            
-
-    #df2 = pd.json_normalize(tweets)
-    #print(tweets)
+   
     df2 = list(little_mallet_wrapper.process_string(text, numbers='remove', 
     remove_stop_words=False, remove_short_words=False) for text in tqdm(results))
     
@@ -63,25 +60,18 @@ def main(hosts):
         sentiment_df = sentiment_df.append(pd.Series([round(polarity, 2),
         sentiment, sample]), ignore_index = True)
 
-    #sentiment_df.columns = ['Tweet_Polarity', 'Tweet_Sentiment', 'Tweet']
-    #print(sentiment_df.head())
+
     avgpolarity, avg_sentiment = getAvg(polarity_sum, len(df2))
     
     sentiment_df.to_json("./data/sentresults" + str(hosts[0]) + ".json")
     stats = sentiment_df[[0]].describe()
     stats.to_json("./data/sentstats" + str(hosts[0]) + ".json")
-    #positive_tweet = "The most positive tweet about " + str(hosts[0]) + " had an overall sentiment score of " + str(stats.max())
-    #negative_tweet = "The most negative tweet about " + str(hosts[0]) + " had an overall sentiment score of " + str(stats.min())
-    #average_polarity = "The average polarity of tweets related to " + hosts[0] + " is" + str(stats.mean())
-    average_sentiment = "The overall sentiment of tweets related to " + hosts[0] + " is " + str(avg_sentiment)
+
+    average_sentiment = "The overall sentiment of tweets related to host " + hosts[0] + " is " + str(avg_sentiment)
     text_file = open("./data/finalanalysis" + hosts[0] + ".txt", "w")
-    #print(positive_tweet)
-    #print(negative_tweet)
-    #print(average_polarity)
+    
     print(average_sentiment)
-    #text_file.write(positive_tweet) 
-    #text_file.write(negative_tweet) 
-    #text_file.write(average_polarity) 
+
     text_file.write(average_sentiment)
 
     
@@ -124,12 +114,7 @@ def partytweets(tweets):
             match = re.search(party, tweet.lower())
             if match:
                 results.append(tweet)
-    #    if 'tina fey' in tweet.lower() or 'amy poehler' in tweet.lower() or 'tina' in tweet.lower() or 'amy' in tweet.lower():
-    #        results.append(tweet)
-            
-
-    #df2 = pd.json_normalize(tweets)
-    #print(tweets)
+   
     df2 = list(little_mallet_wrapper.process_string(text, numbers='remove', 
     remove_stop_words=False, remove_short_words=False) for text in tqdm(results))
     
@@ -143,26 +128,58 @@ def partytweets(tweets):
         sentiment_df = sentiment_df.append(pd.Series([round(polarity, 2),
         sentiment, sample]), ignore_index = True)
 
-    #sentiment_df.columns = ['Tweet_Polarity', 'Tweet_Sentiment', 'Tweet']
-    #print(sentiment_df.head())
+  
     avgpolarity, avg_sentiment = getAvg(polarity_sum, len(df2))
     
     sentiment_df.to_json("./data/sentresults" + str(parties[0]) + ".json")
     stats = sentiment_df[[0]].describe()
     stats.to_json("./data/sentstats" + str(parties[0]) + ".json")
-    #positive_tweet = "The most positive tweet about the " + str(parties[1]) + " had an overall sentiment score of " + str(stats.max())
-    #negative_tweet = "The most negative tweet about the " + str(parties[1]) + " had an overall sentiment score of " + str(stats.min())
-    #average_polarity = "The average polarity of tweets related to the " + parties[1] + " is" + str(stats.mean())
+    
     average_sentiment = "The overall sentiment of tweets related to the " + parties[1] + " is " + str(avg_sentiment)
     text_file = open("./data/finalanalysis" + parties[0] + ".txt", "w")
-    #print(positive_tweet)
-    #print(negative_tweet)
-    #print(average_polarity)
+   
     print(average_sentiment)
-    #text_file.write(positive_tweet) 
-    #text_file.write(negative_tweet) 
-    #text_file.write(average_polarity) 
+   
     text_file.write(average_sentiment)
+
+    ### Sentiment analysis for winners
+def winnertweets(tweets):
+
+    winners = ["richard linklater", "gina rodriguez", "leviathan", "joanne froggat"]
+    results = []
+    for winner in winners:
+        for tweet in tweets:
+            match = re.search(winner, tweet.lower())
+            if match:
+                results.append(tweet)
+
+    df2 = list(little_mallet_wrapper.process_string(text, numbers='remove', 
+    remove_stop_words=False, remove_short_words=False) for text in tqdm(results))
+    
+    
+    polarity_sum = 0
+    sentiment_df = pd.DataFrame()
+    for sample in df2:
+        polarity = getPolarityScore(sample)
+        polarity_sum += polarity
+        sentiment = getSentiment(polarity)
+        sentiment_df = sentiment_df.append(pd.Series([round(polarity, 2),
+        sentiment, sample]), ignore_index = True)
+
+    avgpolarity, avg_sentiment = getAvg(polarity_sum, len(df2))
+    
+    sentiment_df.to_json("./data/sentresultswinners.json")
+    stats = sentiment_df[[0]].describe()
+    stats.to_json("./data/sentstatswinners.json")
+   
+    average_sentiment = "The overall sentiment of tweets related to the winners " + " is " + str(avg_sentiment)
+    text_file = open("./data/finalanalysiswinners.txt", "w")
+   
+    print(average_sentiment)
+   
+    text_file.write(average_sentiment)
+
+        
 
     
 
