@@ -41,6 +41,7 @@ def main():
 class AwardFrame:
     def __init__(self):
         self.results = {}
+        self.session = None
 
         self.award_groups = {}
         self.award_suffixes = ["motion picture", "comedy or musical", "television", "drama", "film"]
@@ -105,8 +106,6 @@ class AwardFrame:
       results = pool.map(self.get_related_tweets_from_award, [award for award in awards])
       pool.close()
 
-      results = []
-
       for result in results:
         [award, related_tweets_nominees, related_tweets_presenters] = result
 
@@ -120,7 +119,9 @@ class AwardFrame:
       related_tweets_nominees = []
       related_tweets_presenters = []
 
-      for tweet in self.tweets:
+      max_idx = len(self.tweets) // 2
+
+      for idx, tweet in enumerate(self.tweets):
         tweet_list = self.alpha_only_string(tweet).split(" ")
 
         for award_candidate in award_group:
@@ -132,14 +133,15 @@ class AwardFrame:
               num_keywords += 1
 
           if num_keywords / len(all_keywords) >= 0.5:
-              related_tweets_nominees.append(tweet)
+              if idx <= max_idx:
+                related_tweets_nominees.append(tweet)
 
               if "present" in tweet.lower():
                 related_tweets_presenters.append(tweet)
 
               break
 
-        return [award, related_tweets_nominees, related_tweets_presenters]
+      return [award, related_tweets_nominees, related_tweets_presenters]
 
     def generate_awards(self, autofill = True):
         print("STARTING GENERATE AWARDS")
@@ -409,7 +411,12 @@ class AwardFrame:
 
       if award_type == "actor" or award_type == "actress":
         for result in sorted_results:
-          nominee_role = self.lookup_name(result)
+          nominee_role = ""
+
+          if result in self.names_cache:
+            nominee_role = self.names_cache[result]
+          else:
+            nominee_role = self.lookup_name(result)
 
           if nominee_role == "actor" and award_type == "actor":
             top_results.append(result)
@@ -423,7 +430,12 @@ class AwardFrame:
             break
       else:
         for result in sorted_results:
-          nominee_role = self.lookup_title(result)
+          nominee_role = ""
+
+          if result in self.titles_cache:
+            nominee_role = self.titles_cache[result]
+          else:
+            nominee_role = self.lookup_title(result)
 
           if nominee_role:
             top_results.append(result)
@@ -534,11 +546,6 @@ class AwardFrame:
       results = pool.map(self.get_presenter_from_award, [award for award in awards])
       pool.close()
 
-      results = []
-
-      for award in awards:
-        results.append(self.get_presenter_from_award(award))
-
       for result in results:
         award = result[0]
         result.pop(0)
@@ -595,7 +602,6 @@ class AwardFrame:
 
     def print_results(self):
         print(self.results)
-
 
 if __name__ == "__main__":
     main()
