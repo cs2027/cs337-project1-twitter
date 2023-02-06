@@ -1,3 +1,4 @@
+import sys
 import json
 import re
 import spacy
@@ -10,9 +11,9 @@ from nltk.corpus import stopwords
 NLP = spacy.load("en_core_web_sm")
 PERSON_GRAMMAR = "NP: {<NNP><NNP>}"
 STOP_WORDS = set(stopwords.words("english"))
- 
-def main():
-    frame = AwardFrame()
+
+def main(year):
+    frame = AwardFrame(year)
 
     frame.load_tweets()
 
@@ -29,11 +30,12 @@ def main():
 
     frame.generate_hosts()
 
-    frame.print_results()
-    frame.write_to_file(frame.results, "RESULTS_2013.json")
+    frame.write_to_file(frame.results, f"RESULTS_{year}.json")
 
 class AwardFrame:
-    def __init__(self):
+    def __init__(self, year):
+        self.year = year
+
         self.results = {}
         self.session = None
 
@@ -55,14 +57,12 @@ class AwardFrame:
         self.tweets = []
 
     def load_tweets(self):
-        with open("./data/gg2013.json") as f:
+        with open(f"./data/gg{self.year}.json") as f:
             tweets = json.load(f)
 
         self.tweets = list(map(lambda x: x["text"], tweets))
 
     def generate_related_tweets(self):
-      print("STARTING RELATED TWEETS")
-
       if not self.tweets:
         self.load_tweets()
 
@@ -82,14 +82,14 @@ class AwardFrame:
         self.related_tweets_nominees[award] = related_tweets_nominees
         self.related_tweets_presenters[award] = related_tweets_presenters
 
-      print("FINISHING RELATED TWEETS")
-
     def get_related_tweets_from_award(self, award):
       award_group = [award] + self.award_groups[award] if award in self.award_groups else [award]
       related_tweets_nominees = []
       related_tweets_presenters = []
 
-      for tweet in self.tweets:
+      max_idx = len(self.tweets) // 2
+
+      for idx, tweet in enumerate(self.tweets):
         tweet_list = self.alpha_only_string(tweet).split(" ")
 
         for award_candidate in award_group:
@@ -101,7 +101,8 @@ class AwardFrame:
               num_keywords += 1
 
           if num_keywords / len(all_keywords) >= 0.5:
-              related_tweets_nominees.append(tweet)
+              if idx <= max_idx:
+                related_tweets_nominees.append(tweet)
 
               if "present" in tweet.lower():
                 related_tweets_presenters.append(tweet)
@@ -111,13 +112,11 @@ class AwardFrame:
       return [award, related_tweets_nominees, related_tweets_presenters]
 
     def generate_awards(self, autofill = True):
-        print("STARTING GENERATE AWARDS")
-
         if not self.tweets:
             self.load_tweets()
 
         if autofill:
-            with open("./data/nominees2013.json") as f:
+            with open(f"./data/nominees{self.year}.json") as f:
                 data = json.load(f)
 
             awards = data.keys()
@@ -145,8 +144,6 @@ class AwardFrame:
             awards = self.parse_award_names(awards)
 
             self.results = {award : {} for award in awards}
-
-        print("ENDING GENERATE AWARDS")
 
     def aggregate_awards(self, awards):
       n = len(awards)
@@ -232,13 +229,11 @@ class AwardFrame:
           self.award_keywords[award] = list(filter(lambda word: word not in STOP_WORDS and word != "-", award.split(" ")))
 
     def generate_nominees(self, autofill = True):
-        print("STARTING GENERATE NOMINEES")
-
         if not self.tweets:
             self.load_tweets()
 
         if autofill:
-            with open("./data/nominees2013.json") as f:
+            with open(f"./data/nominees{self.year}.json") as f:
                 data = json.load(f)
 
             for award, nominee_list in data.items():
@@ -261,11 +256,6 @@ class AwardFrame:
               result.pop(0)
 
               self.results[award]["nominees"] = result
-
-        self.write_to_file(self.results, "results_award_nominees.json")
-        self.print_results()
-
-        print("ENDING GENERATE AWARDS")
 
     def get_presenter_from_award(self, award):
       results = {}
@@ -408,8 +398,6 @@ class AwardFrame:
       return list(map(lambda x : x[0][0] + " " + x[1][0], matches))
 
     def generate_winners(self):
-        print("STARTING GENERATE WINNERS")
-
         if not self.tweets:
             self.load_tweets()
 
@@ -457,11 +445,7 @@ class AwardFrame:
 
                 self.results[award]["winner"] = winner
 
-            print("ENDING GENERATE WINNERS")
-
     def generate_presenters(self):
-      print("STARTING GENERATE PRESENTERS")
-
       if not self.tweets:
         self.load_tweets()
 
@@ -477,20 +461,13 @@ class AwardFrame:
 
         self.results[award]["presenters"] = result
 
-      self.write_to_file(self.results, "presenters.json")
-      self.print_results()
-
-      print("ENDING GENERATE NOMINEES")
-
     def generate_hosts(self):
-      print("STARTING GENERATE HOSTS")
-
       if not self.tweets:
         self.load_tweets()
 
       results = {}
 
-      for tweet in self.related_tweets_hosts():
+      for tweet in self.tweets:
         if "host" in tweet.lower() and "next year" not in tweet.lower():
           doc = NLP(tweet)
           for ent in doc.ents:
@@ -503,8 +480,6 @@ class AwardFrame:
       results = sorted(results.items(), key=(lambda x: x[1]), reverse=True)[0:2]
       hosts = [x[0] for x in results]
       self.results["hosts"] = hosts
-
-      print("ENDING GENERATE HOSTS")
 
     def alpha_only_string(self, s):
       s = re.sub("[^a-zA-Z ]", "", s)
@@ -521,12 +496,8 @@ class AwardFrame:
       with open(f"./data/{filename}", "w") as f:
         f.write(json_obj)
 
-    def print_winners(self):
-        for award in self.results.keys():
-            print(award, ":", self.results[award]["winner"])
-
-    def print_results(self):
-        print(self.results)
-
 if __name__ == "__main__":
-    main()
+  if len(sys.argv) < 2:
+    exit(1)
+
+  main(int(sys.argv[1]))
