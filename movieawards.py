@@ -3,10 +3,19 @@ import re
 import spacy
 import time
 import multiprocessing as mp
+from cassandra.cluster import Cluster
+from cassandra.auth import PlainTextAuthProvider
 
 # MISC: See here (https://stackoverflow.com/questions/38916452/nltk-download-ssl-certificate-verify-failed) for SSL certificate issues w/ NLTK downloads
 from nltk import pos_tag, word_tokenize, RegexpParser
 from nltk.corpus import stopwords
+
+cloud_config= {
+  'secure_connect_bundle': 'secure-connect-nlp.zip'
+}
+auth_provider = PlainTextAuthProvider('GPteigKOPCAybnALbhbZsFUd', 'uBjcp8pcknnG+Ja3tkRX+5I-Ng9+3KLt0p-BC1LDCOTBZLftZ-AkIZNMbxJMXMj.kz08-cHmpv46UwlgSh4J8sK_FgW.bOdsrf3JQdQx6JT4NAHtYAN+FZ+3gvFFdYtp')
+cluster = Cluster(cloud=cloud_config, auth_provider=auth_provider)
+SESSION = cluster.connect()
 
 NLP = spacy.load("en_core_web_sm")
 PERSON_GRAMMAR = "NP: {<NNP><NNP>}"
@@ -32,7 +41,6 @@ def main():
 class AwardFrame:
     def __init__(self):
         self.results = {}
-        self.nominee_type_system = {}
 
         self.award_groups = {}
         self.award_suffixes = ["motion picture", "comedy or musical", "television", "drama", "film"]
@@ -41,9 +49,25 @@ class AwardFrame:
         self.winner_regex = [f"best(.*){suffix}" for suffix in self.award_suffixes]
         self.nominee_regex = ["(.*)nominee(.*)", "(.*)nominate(.*)"]
         self.hosts_regex = ["(.*)"]
-        # self.nominee_regex = ["nominees for(.*) are(.*)", "(.*)is nominated for(.*)", "(.*)is[ ]?(?:a)?[ ]?nominee for(.*)", "(.*)are[ ]?(?:the)?[ ]?nominees for(.*)"]
         self.awards_regex = ["(.*)goes to(.*)", "(.*)wins(.*)", "(.*)takes home(.*)", "(.*)receives(.*)", "(.*)is the winner of(.*)"]
+
         self.tweets = []
+
+    def lookup_name(self, name):
+      res = SESSION.execute(f"SELECT role FROM imdb.names WHERE names = {name}").one()
+
+      if res:
+        return res
+      else:
+        None
+
+    def lookup_title(self, title):
+      res = SESSION.execute(f"SELECT type FROM imdb.titles WHERE title = {title}").one()
+
+      if res:
+        return res
+      else:
+        None
 
     def load_tweets(self):
         with open("./data/gg2013.json") as f:
@@ -199,8 +223,10 @@ class AwardFrame:
       results = {}
       award_type = ""
 
-      if "actor" in award or "actress" in award:
-        award_type = "person"
+      if "actor" in award:
+        award_type = "actor"
+      elif "actress" in award:
+        award_type = "actress"
       else:
         award_type = "film"
 
@@ -226,25 +252,54 @@ class AwardFrame:
         tweet = self.alpha_only_string(tweet)
         doc = NLP(tweet)
 
-        if award_type == "person":
+        if award_type == "actor" or award_type == "actress":
           nltk_nominees = self.match_grammar_from_tweet(tweet)
           spacy_nominees = []
 
           for word in doc.ents:
             if word.label_ == "PERSON":
-              spacy_nominees.append(str(word))
+              nominee = str(word)
+              spacy_nominees.append(nominee)
+              # nominee_role = self.lookup_name(nominee)
+
+              # if nominee_role == "actor" and award_type == "actor":
+              #   spacy_nominees.append(nominee)
+
+              # if nominee_role == "actress" and award_type == "actress":
+              #   spacy_nominees.append(nominee)
 
           nominee_candidates = list(set(nltk_nominees) & set(spacy_nominees))
 
           for nominee_candidate in nominee_candidates:
+            if nominee_candidate.startswith("RT"):
+              nominee_candidate = nominee_candidate.split(" ")
+
+              if len(nominee_candidate) <= 2:
+                continue
+
+              nominee_candidate = " ".join(nominee_candidate[2:])
+
+            if self.contains_stopword(nominee_candidate) or "goldenglobe" in nominee_candidate.replace(" ", "").lower():
+              continue
+
             if nominee_candidate in results:
               results[nominee_candidate] = results[nominee_candidate] + 1
             else:
               results[nominee_candidate] = 1
         else:
-          doc = NLP(tweet)
-          for chunk in doc.noun_chunks:
-            nominee_candidate = chunk.text
+          nominee_candidates = self.get_proper_nouns(tweet)
+
+          for nominee_candidate in nominee_candidates:
+            if nominee_candidate.startswith("RT"):
+              nominee_candidate = nominee_candidate.split(" ")
+
+              if len(nominee_candidate) <= 2:
+                continue
+
+              nominee_candidate = " ".join(nominee_candidate[2:])
+
+            if self.contains_stopword(nominee_candidate) or "goldenglobe" in nominee_candidate.replace(" ", "").lower():
+              continue
 
             if nominee_candidate in results:
               results[nominee_candidate] = results[nominee_candidate] + 1
@@ -254,6 +309,33 @@ class AwardFrame:
       top_results = sorted(results.items(), key = lambda x: x[1], reverse = True)[:10]
       top_results = [award] + [result[0] for result in top_results]
       return top_results
+
+    def get_proper_nouns(self, tweet):
+      doc = NLP(tweet)
+      res = []
+
+      curr_pos = None
+      curr_phrase = None
+
+      for word in doc:
+        if word.pos_ == "PROPN":
+          if curr_pos != "PROPN":
+            curr_pos = "PROPN"
+            curr_phrase = str(word)
+          else:
+            curr_phrase += " "
+            curr_phrase += str(word)
+        else:
+          if curr_pos == "PROPN":
+            curr_pos = None
+            res.append(curr_phrase)
+
+            curr_phrase = None
+
+      if curr_pos == "PROPN" and curr_phrase is not None:
+        res.append(curr_phrase)
+
+      return res
 
     def match_grammar_from_tweet(self, tweet):
       tweet = word_tokenize(tweet)
@@ -277,8 +359,6 @@ class AwardFrame:
             subres = {nominee : 0 for nominee in self.results[award]["nominees"]}
             results[award] = subres
 
-        # TODO: Instead of regex, maybe try nltk, e.g. named entity?
-        # Check for noun phrases, see if one includes the word "award", other one is a nominee hopefully(?)
         for index, regex in enumerate(self.awards_regex):
             for tweet in self.tweets:
                 match = re.search(regex, tweet)
@@ -343,6 +423,10 @@ class AwardFrame:
       s = re.sub("[^a-zA-Z ]", "", s)
       s = re.sub(' +', ' ', s)
       return s
+
+    def contains_stopword(self, s):
+      stopwords = list(filter(lambda word: word in STOP_WORDS, s.split(" ")))
+      return len(stopwords) > 0
 
     def write_to_file(self, data, filename):
       json_obj = json.dumps(data)
