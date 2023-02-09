@@ -1,5 +1,5 @@
 #%%
-
+import sys
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning) 
 import gg_apifake
@@ -31,51 +31,20 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 
 
-def main(hosts):
+def main():
+    if len(sys.argv) < 2:
+        exit(1)
+
+    year = int(sys.argv[1])
     tweets = []
-    with open("./data/gg2013.json") as f:
+    with open(f"./data/gg{year}.json") as f:
         tweets = json.load(f)
     #tweets = [tweets[k] for k in range(10]
     tweets = list(map(lambda x: x["text"], tweets))
 
     partytweets(tweets)
-    winnertweets(tweets)
-    results = []
-    for host in hosts:
-        for tweet in tweets:
-            match = re.search(host, tweet.lower())
-            if match:
-                results.append(tweet)
-   
-    df2 = list(little_mallet_wrapper.process_string(text, numbers='remove', 
-    remove_stop_words=False, remove_short_words=False) for text in tqdm(results))
-    
-    
-    polarity_sum = 0
-    sentiment_df = pd.DataFrame()
-    for sample in df2:
-        polarity = getPolarityScore(sample)
-        polarity_sum += polarity
-        sentiment = getSentiment(polarity)
-        sentiment_df = sentiment_df.append(pd.Series([round(polarity, 2),
-        sentiment, sample]), ignore_index = True)
-
-
-    avgpolarity, avg_sentiment = getAvg(polarity_sum, len(df2))
-    
-    sentiment_df.to_json("./data/sentresults" + str(hosts[0]) + ".json")
-    stats = sentiment_df[[0]].describe()
-    stats.to_json("./data/sentstats" + str(hosts[0]) + ".json")
-
-    average_sentiment = "The overall sentiment of tweets related to host " + hosts[0] + " is " + str(avg_sentiment)
-    text_file = open("./data/finalanalysis" + hosts[0] + ".txt", "w")
-    
-    print(average_sentiment)
-
-    text_file.write(average_sentiment)
-
-    
-    #visualize(sentiment_df)
+    winnertweets(tweets, year)
+    hosttweets(tweets, year)
 
 # Get polarity
 def getPolarityScore(text):
@@ -143,49 +112,86 @@ def partytweets(tweets):
     text_file.write(average_sentiment)
 
     ### Sentiment analysis for winners
-def winnertweets(tweets):
-
-    winners = ["richard linklater", "gina rodriguez", "leviathan", "joanne froggat"]
-    results = []
-    for winner in winners:
-        for tweet in tweets:
-            match = re.search(winner, tweet.lower())
-            if match:
-                results.append(tweet)
-
-    df2 = list(little_mallet_wrapper.process_string(text, numbers='remove', 
-    remove_stop_words=False, remove_short_words=False) for text in tqdm(results))
+def winnertweets(tweets, year):
     
-    
-    polarity_sum = 0
-    sentiment_df = pd.DataFrame()
-    for sample in df2:
-        polarity = getPolarityScore(sample)
-        polarity_sum += polarity
-        sentiment = getSentiment(polarity)
-        sentiment_df = sentiment_df.append(pd.Series([round(polarity, 2),
-        sentiment, sample]), ignore_index = True)
+    winners = gg_apifake.get_winner(year)
+    with open(f"./data/sentanalysiswinners{year}.txt", "w") as f:
+        
+        for winner in winners.values():
+            print("computing sentiment for " + winner)
+            results = []
+            for tweet in tweets:
+                match = re.search(winner.lower(), tweet.lower())
+                if match:
+                    results.append(tweet)
+        
 
-    avgpolarity, avg_sentiment = getAvg(polarity_sum, len(df2))
+            df2 = list(little_mallet_wrapper.process_string(text, numbers='remove', 
+            remove_stop_words=False, remove_short_words=False) for text in tqdm(results))
+        
+        
+            polarity_sum = 0
+            sentiment_df = pd.DataFrame()
+            for sample in df2:
+                polarity = getPolarityScore(sample)
+                polarity_sum += polarity
+                sentiment = getSentiment(polarity)
+                sentiment_df = sentiment_df.append(pd.Series([round(polarity, 2),
+                sentiment, sample]), ignore_index = True)
+
+            overall_sentiment = getSentiment(polarity_sum)
+            f.write(f"The overall sentiment for {winner} is {overall_sentiment} with an sentiment scores of: {polarity_sum}\n")
+
+def hosttweets(tweets, year):
+    hosts = gg_apifake.get_hosts(year)
+    with open(f"./data/sentanalysishosts{year}.txt", "w") as f:
+        
+        for host in hosts:
+            print("computing sentiment for " + host)
+            results = []
+            for tweet in tweets:
+                match = re.search(host.lower(), tweet.lower())
+                if match:
+                    results.append(tweet)
+        
+
+            df2 = list(little_mallet_wrapper.process_string(text, numbers='remove', 
+            remove_stop_words=False, remove_short_words=False) for text in tqdm(results))
+        
+        
+            polarity_sum = 0
+            sentiment_df = pd.DataFrame()
+            for sample in df2:
+                polarity = getPolarityScore(sample)
+                polarity_sum += polarity
+                sentiment = getSentiment(polarity)
+                sentiment_df = sentiment_df.append(pd.Series([round(polarity, 2),
+                sentiment, sample]), ignore_index = True)
+
+            overall_sentiment = getSentiment(polarity_sum)
+            f.write(f"The overall sentiment for {host} is {overall_sentiment} with an sentiment scores of: {polarity_sum}\n")
+
+    #avgpolarity, avg_sentiment = getAvg(polarity_sum, len(df2))
     
-    sentiment_df.to_json("./data/sentresultswinners.json")
-    stats = sentiment_df[[0]].describe()
-    stats.to_json("./data/sentstatswinners.json")
+        #sentiment_df.to_json("./data/sentresultswinners.json")
+    #stats = sentiment_df[[0]].describe()
+        #stats.to_json("./data/sentstatswinners.json")
    
-    average_sentiment = "The overall sentiment of tweets related to the winners " + " is " + str(avg_sentiment)
-    text_file = open("./data/finalanalysiswinners.txt", "w")
+    #average_sentiment = "The overall sentiment of tweets related to the winners " + " is " + str(avg_sentiment)
+    #text_file = open("./data/finalanalysiswinners.txt", "w")
    
-    print(average_sentiment)
+    #print(average_sentiment)
    
-    text_file.write(average_sentiment)
+    #text_file.write(average_sentiment)
 
         
 
     
 
 if __name__ == "__main__":
-    main(["tina fey","tina"])
-    main(["amy poehler", "amy"])
+    main()
+    #main(["amy poehler", "amy"])
+    #winnertweets()
 
 
 
